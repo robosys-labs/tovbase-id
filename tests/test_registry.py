@@ -176,6 +176,15 @@ def test_current_registry_key_endpoint(client: TestClient) -> None:
     assert body["public_key_jwk"]["crv"] == "Ed25519"
 
 
+def test_registry_keys_endpoint(client: TestClient) -> None:
+    response = client.get("/v1/did/keys")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) >= 1
+    assert any(key["status"] == "active" for key in body)
+
+
 def test_attestation_upsert(client: TestClient, user_key) -> None:
     registered = register_identity(client, user_key)
     response = client.post(

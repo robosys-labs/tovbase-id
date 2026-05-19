@@ -80,6 +80,7 @@ node sdk/browser/test-sdk.mjs
 - `GET /v1/did/hash/{hash_id}`
 - `POST /v1/did/receipt/verify`
 - `GET /v1/did/keys/current`
+- `GET /v1/did/keys`
 - `POST /v1/did/attest`
 - `POST /v1/did/actions/challenge`
 - `POST /v1/did/actions/submit`

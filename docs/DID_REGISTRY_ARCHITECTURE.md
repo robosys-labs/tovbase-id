@@ -712,6 +712,11 @@ Response:
 Banks should cache the public key by `key_id` and keep old public keys for
 receipt verification after rotation.
 
+### `GET /v1/did/keys`
+
+Returns active and verify-only registry receipt public keys. Verify-only keys
+are used for old receipts after signing-key rotation.
+
 ### `POST /v1/did/attest`
 
 Adds or updates a bank attestation for an existing hash.

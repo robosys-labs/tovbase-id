@@ -66,6 +66,11 @@ def current_registry_key() -> RegistryKeyResponse:
     return registry.current_registry_key()
 
 
+@router.get("/keys", response_model=list[RegistryKeyResponse])
+def registry_keys() -> list[RegistryKeyResponse]:
+    return registry.registry_keys()
+
+
 @router.post("/attest", response_model=DidAttestResponse)
 def attest(request: DidAttestRequest, db: DBSession) -> DidAttestResponse:
     return _service(lambda: registry.upsert_attestation(db, request))

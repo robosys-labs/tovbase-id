@@ -33,6 +33,16 @@ def generate_key_material(key_id: str, node_id: str) -> dict[str, object]:
             "crv": "Ed25519",
             "x": b64url_encode(public_bytes),
         },
+        "verifying_key_record": {
+            "node_id": node_id,
+            "key_id": key_id,
+            "signature_algorithm": "ed25519",
+            "public_key_jwk": {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "x": b64url_encode(public_bytes),
+            },
+        },
     }
 
 

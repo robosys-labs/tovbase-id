@@ -50,22 +50,66 @@ def canonical_json_bytes(value: Any) -> bytes:
     return json.dumps(safe_value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
 
 
+def _public_key_from_jwk(public_key_jwk: dict[str, Any]) -> ed25519.Ed25519PublicKey:
+    if public_key_jwk.get("kty") != "OKP" or public_key_jwk.get("crv") != "Ed25519":
+        raise ValueError("only Ed25519 OKP JWK registry keys are supported")
+    return ed25519.Ed25519PublicKey.from_public_bytes(b64url_decode(str(public_key_jwk["x"])))
+
+
 class RegistrySigner:
-    def __init__(self) -> None:
-        self.key_id = settings.did_signing_key_id
-        self.node_id = settings.did_node_id
+    def __init__(
+        self,
+        *,
+        key_id: str | None = None,
+        node_id: str | None = None,
+        private_key_b64: str | None = None,
+        verifying_keys_json: str | None = None,
+    ) -> None:
+        self.key_id = key_id or settings.did_signing_key_id
+        self.node_id = node_id or settings.did_node_id
         self.signature_algorithm = "ed25519"
-        if settings.did_signing_private_key_b64:
-            private_bytes = b64url_decode(settings.did_signing_private_key_b64)
+        private_key_b64 = settings.did_signing_private_key_b64 if private_key_b64 is None else private_key_b64
+        if private_key_b64:
+            private_bytes = b64url_decode(private_key_b64)
             self._private_key = ed25519.Ed25519PrivateKey.from_private_bytes(private_bytes)
         else:
             self._private_key = ed25519.Ed25519PrivateKey.generate()
         self._public_key = self._private_key.public_key()
+        self._verifying_keys = self._load_verifying_keys(
+            settings.did_verifying_keys_json if verifying_keys_json is None else verifying_keys_json
+        )
+        self._verifying_keys[self.key_id] = self.public_key_jwk
 
     @property
     def public_key_jwk(self) -> dict[str, str]:
         public_bytes = self._public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
         return {"kty": "OKP", "crv": "Ed25519", "x": b64url_encode(public_bytes)}
+
+    @staticmethod
+    def _load_verifying_keys(value: str) -> dict[str, dict[str, Any]]:
+        if not value:
+            return {}
+        parsed = json.loads(value)
+        records = parsed.values() if isinstance(parsed, dict) else parsed
+        keyring: dict[str, dict[str, Any]] = {}
+        for record in records:
+            key_id = record["key_id"]
+            public_key_jwk = record["public_key_jwk"]
+            _public_key_from_jwk(public_key_jwk)
+            keyring[key_id] = public_key_jwk
+        return keyring
+
+    def public_keys(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "node_id": self.node_id,
+                "key_id": key_id,
+                "signature_algorithm": self.signature_algorithm,
+                "public_key_jwk": public_key_jwk,
+                "status": "active" if key_id == self.key_id else "verify_only",
+            }
+            for key_id, public_key_jwk in sorted(self._verifying_keys.items())
+        ]
 
     def sign_payload(self, payload: dict[str, Any]) -> tuple[str, str]:
         payload_bytes = canonical_json_bytes(payload)
@@ -74,10 +118,12 @@ class RegistrySigner:
         return payload_hash, b64url_encode(signature)
 
     def verify_payload(self, payload: dict[str, Any], signature: str, key_id: str) -> bool:
-        if key_id != self.key_id:
+        public_key_jwk = self._verifying_keys.get(key_id)
+        if public_key_jwk is None:
             return False
         try:
-            self._public_key.verify(b64url_decode(signature), canonical_json_bytes(payload))
+            public_key = _public_key_from_jwk(public_key_jwk)
+            public_key.verify(b64url_decode(signature), canonical_json_bytes(payload))
         except (InvalidSignature, ValueError):
             return False
         return True

@@ -157,6 +157,7 @@ class RegistryKeyResponse(BaseModel):
     key_id: str
     signature_algorithm: str
     public_key_jwk: dict[str, Any]
+    status: Literal["active", "verify_only"] = "active"
 
 
 class DidAttestRequest(StrictModel):

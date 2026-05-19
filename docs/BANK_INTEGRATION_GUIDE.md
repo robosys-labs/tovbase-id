@@ -40,6 +40,16 @@ GET /v1/did/keys/current
 
 Use that public key to verify registration receipts offline.
 
+For rotation, deploy the new private key as the active signing key and keep old
+public keys in `DID_VERIFYING_KEYS_JSON`. The API exposes all active and
+verify-only public keys at:
+
+```text
+GET /v1/did/keys
+```
+
+This lets old receipts keep verifying by `key_id` after the signing key changes.
+
 ## 3. Hash identity data inside the bank boundary
 
 Use the browser reference in `sdk/browser/tovbase-id-sdk.mjs` as the audit

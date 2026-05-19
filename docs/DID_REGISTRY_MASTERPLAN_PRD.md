@@ -336,6 +336,8 @@ Exit criteria:
 - Passkey-only document/media signing path works against hashes and completes
   without liveness step-up.
 - Current status: initial M1 slice implemented with 11 registry-core tests.
+- Current status update: receipt key generation, public-key discovery, and
+  verify-only rotated key support are implemented.
 
 ### Milestone 2: Bank mirror pilot
 

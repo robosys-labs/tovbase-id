@@ -434,7 +434,12 @@ def current_registry_key() -> RegistryKeyResponse:
         key_id=registry_signer.key_id,
         signature_algorithm=registry_signer.signature_algorithm,
         public_key_jwk=registry_signer.public_key_jwk,
+        status="active",
     )
+
+
+def registry_keys() -> list[RegistryKeyResponse]:
+    return [RegistryKeyResponse(**key) for key in registry_signer.public_keys()]
 
 
 def upsert_attestation(db: Session, request: DidAttestRequest) -> DidAttestResponse:
