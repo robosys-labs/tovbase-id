@@ -30,6 +30,7 @@ docs/
   REGISTRY_CORE_PERFORMANCE.md   # registry-core timing benchmark
   ANCHORING_WORKFLOW.md          # Merkle root windows and proof generation
   API_AUTHENTICATION.md          # bank/admin API key contract
+  OPERATIONS_LOGGING.md          # PII-safe structured access logs
   NATS_EVENT_PLANE.md            # optional JetStream registry event publisher
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/

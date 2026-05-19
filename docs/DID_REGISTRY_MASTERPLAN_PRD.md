@@ -195,6 +195,8 @@ registered and attested without Tovbase storing the underlying identity data.
   the provider responds in under 20 seconds.
 - Target steady API worker memory under 256 MB for registry-only traffic.
 - Add structured logs without PII.
+- Current status: PII-safe structured access logs are implemented with
+  route-template paths, request ids, status codes, and durations only.
 - Current status: `scripts/benchmark_registry_core.py` measures register,
   resolve, receipt verification, and attestation upsert paths against local
   pilot targets.
@@ -284,8 +286,9 @@ Optional L3
   Tovbase stores only content hashes and approval metadata.
 - Camera/liveness proofs are provider-signed attestation results with evidence
   hashes; biometric media stays with the bank or liveness provider.
-- Logs must include hash prefixes only when needed; no full PII-derived input
-  payloads.
+- Access logs use route templates, request ids, status codes, and durations
+  only. They do not include request bodies, query strings, API keys, raw hashes,
+  DIDs, client IPs, or bank customer metadata.
 - Receipt and event hash chains make tampering detectable.
 
 ## Landing page PRD: `id.tovbase.com`

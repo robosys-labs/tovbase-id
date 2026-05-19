@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     nats_stream_name: str = "TOVBASE_ID_REGISTRY"
     nats_subject_prefix: str = "tovbase.id.registry"
     action_challenge_ttl_seconds: int = 300
+    access_log_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

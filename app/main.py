@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.routes import router as did_router
 from app.db import init_db
+from app.middleware import install_access_logging
 
 
 @asynccontextmanager
@@ -18,6 +19,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+install_access_logging(app)
 app.include_router(did_router)
 
 

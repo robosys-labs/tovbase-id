@@ -1034,6 +1034,9 @@ block DID registry development.
   persistence.
 - Bank/admin mutation endpoints reject missing, inactive, or wrong-scope API
   keys before writing registry state.
+- Access logs use route templates, request ids, status codes, and durations
+  only; they do not include request bodies, query strings, API keys, raw hashes,
+  DIDs, client IPs, or bank customer metadata.
 - `POST /v1/did/register` is idempotent for exact duplicate registrations.
 - Conflicting duplicate registrations return `409 Conflict`.
 - Every successful registration produces a signed, timestamped receipt.
