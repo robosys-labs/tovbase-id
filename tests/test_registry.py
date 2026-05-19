@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, engine, init_db
 from app.main import app
-from tests.helpers import sign_bank_attestation_payload, sign_bank_revocation_payload
+from tests.helpers import sign_action_attestation_payload, sign_bank_attestation_payload, sign_bank_revocation_payload
 
 
 def b64url(value: bytes) -> str:
@@ -341,16 +341,14 @@ def test_camera_liveness_policy_can_be_approved(client: TestClient, user_key) ->
             "signature": sign_challenge(private_key, challenge["challenge_hash"]),
             "attestations": [
                 {
-                    "attestation_type": "camera_liveness",
-                    "provider_id": "bank-a-liveness",
-                    "evidence_hash": sha256_hex("provider-held-evidence"),
-                    "result": "passed",
-                    "issued_at": datetime.now(UTC).isoformat(),
-                    "expires_at": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
-                    "key_id": "bank-a-liveness-1",
-                    "signature": b64url(b"liveness-signature"),
-                    "payload": {},
-                }
+                    **sign_action_attestation_payload(
+                        action_id=challenge["action_id"],
+                        did=registered["did"],
+                        hash_id=registered["hash_id"],
+                        evidence_hash=sha256_hex("provider-held-evidence"),
+                        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+                    )
+                },
             ],
         },
     )
@@ -359,7 +357,51 @@ def test_camera_liveness_policy_can_be_approved(client: TestClient, user_key) ->
     body = submit_response.json()
     assert body["status"] == "approved"
     assert body["verification_result"]["bank_credential_valid"] is True
+    assert body["verification_result"]["attestation_signatures_valid"] is True
     assert body["verification_result"]["attestation_policy_satisfied"] is True
+
+
+def test_camera_liveness_policy_rejects_invalid_provider_signature(client: TestClient, user_key) -> None:
+    private_key, _, _, _ = user_key
+    registered = register_identity(client, user_key)
+    challenge = client.post(
+        "/v1/did/actions/challenge",
+        json={
+            "did": registered["did"],
+            "bank_id": "bank-a",
+            "action_type": "mandate_approval",
+            "media_hash": sha256_hex("video-proof-envelope"),
+            "requested_attestation": {
+                "level": "aal3",
+                "methods": ["passkey", "bank_handshake", "camera_liveness"],
+                "max_age_seconds": 300,
+            },
+            "policy_version": "bank-a-actions-v1",
+        },
+    ).json()
+    attestation = sign_action_attestation_payload(
+        action_id=challenge["action_id"],
+        did=registered["did"],
+        hash_id=registered["hash_id"],
+        evidence_hash=sha256_hex("provider-held-evidence"),
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+    )
+    attestation["signature"] = b64url(b"invalid-provider-signature")
+
+    submit_response = client.post(
+        "/v1/did/actions/submit",
+        json={
+            "action_id": challenge["action_id"],
+            "bank_credential_id": "bankcred_123",
+            "signature": sign_challenge(private_key, challenge["challenge_hash"]),
+            "attestations": [attestation],
+        },
+    )
+
+    assert submit_response.status_code == 200
+    body = submit_response.json()
+    assert body["status"] == "rejected"
+    assert body["verification_result"]["attestation_signatures_valid"] is False
 
 
 def test_health_reports_registry_ready(client: TestClient) -> None:

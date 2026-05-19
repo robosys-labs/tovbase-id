@@ -18,6 +18,15 @@ BANK_PUBLIC_JWK = {
 }
 BANK_ID = "bank-a"
 BANK_KEY_ID = "bank-a-signing-1"
+PROVIDER_PRIVATE_KEY = ed25519.Ed25519PrivateKey.generate()
+PROVIDER_PUBLIC_BYTES = PROVIDER_PRIVATE_KEY.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+PROVIDER_PUBLIC_JWK = {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": base64.urlsafe_b64encode(PROVIDER_PUBLIC_BYTES).rstrip(b"=").decode("ascii"),
+}
+PROVIDER_ID = "bank-a-liveness"
+PROVIDER_KEY_ID = "bank-a-liveness-1"
 
 
 def b64url(value: bytes) -> str:
@@ -32,6 +41,20 @@ def trusted_bank_keys_json() -> str:
                 "key_id": BANK_KEY_ID,
                 "signature_algorithm": "ed25519",
                 "public_key_jwk": BANK_PUBLIC_JWK,
+                "status": "active",
+            }
+        ]
+    )
+
+
+def trusted_provider_keys_json() -> str:
+    return json.dumps(
+        [
+            {
+                "provider_id": PROVIDER_ID,
+                "key_id": PROVIDER_KEY_ID,
+                "signature_algorithm": "ed25519",
+                "public_key_jwk": PROVIDER_PUBLIC_JWK,
                 "status": "active",
             }
         ]
@@ -99,6 +122,56 @@ def sign_bank_revocation_payload(
         "revoked_at": revoked_at.isoformat(),
         "reason_code": reason_code,
         "key_id": BANK_KEY_ID,
+        "signature": signature,
+        "payload": payload,
+    }
+
+
+def sign_action_attestation_payload(
+    *,
+    action_id: str,
+    did: str,
+    hash_id: str,
+    bank_id: str = BANK_ID,
+    attestation_type: str = "camera_liveness",
+    evidence_hash: str,
+    result: str = "passed",
+    issued_at: datetime | None = None,
+    expires_at: datetime | None = None,
+    payload: dict | None = None,
+) -> dict:
+    from app.schemas import ActionAttestationInput
+    from app.services.provider_keys import action_attestation_envelope
+
+    issued_at = issued_at or datetime.now(UTC).replace(microsecond=0)
+    payload = payload or {}
+    attestation = ActionAttestationInput(
+        attestation_type=attestation_type,
+        provider_id=PROVIDER_ID,
+        evidence_hash=evidence_hash,
+        result=result,
+        issued_at=issued_at,
+        expires_at=expires_at,
+        key_id=PROVIDER_KEY_ID,
+        signature="pending",
+        payload=payload,
+    )
+    envelope = action_attestation_envelope(
+        action_id=action_id,
+        did=did,
+        hash_id=hash_id,
+        bank_id=bank_id,
+        attestation=attestation,
+    )
+    signature = b64url(PROVIDER_PRIVATE_KEY.sign(canonical_json_bytes(envelope)))
+    return {
+        "attestation_type": attestation_type,
+        "provider_id": PROVIDER_ID,
+        "evidence_hash": evidence_hash,
+        "result": result,
+        "issued_at": issued_at.isoformat(),
+        "expires_at": expires_at.isoformat() if expires_at else None,
+        "key_id": PROVIDER_KEY_ID,
         "signature": signature,
         "payload": payload,
     }

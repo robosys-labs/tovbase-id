@@ -173,6 +173,8 @@ registered and attested without Tovbase storing the underlying identity data.
 - Provide audit export for all attestations on a hash.
 - Current status: signed bank attestation verification, signed revocation, and
   audit export endpoints are implemented.
+- Current status: action-level provider signatures are verified for
+  `camera_liveness` and manual-review attestations.
 - Support requested attestation policies:
   - `instant`: passkey only.
   - `aal2`: passkey plus bank handshake credential.

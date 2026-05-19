@@ -48,6 +48,7 @@ from app.services.crypto import (
     utc_now,
     verify_detached_signature,
 )
+from app.services.provider_keys import verify_action_attestation
 from app.services.replication import replication_status
 
 
@@ -644,6 +645,16 @@ def create_action_challenge(db: Session, request: ActionChallengeRequest) -> Act
 def _policy_satisfied(action: SignedAction, request: ActionSubmitRequest, now: datetime) -> dict[str, Any]:
     methods = set(action.requested_attestation.get("methods", ["passkey"]))
     supplied_attestations = {att.attestation_type: att for att in request.attestations}
+    attestation_signature_results = {
+        att.attestation_type: verify_action_attestation(
+            action_id=action.action_id,
+            did=action.did,
+            hash_id=action.hash_id,
+            bank_id=action.bank_id,
+            attestation=att,
+        )
+        for att in request.attestations
+    }
 
     signature_valid = verify_detached_signature(
         action.identity_hash.webauthn_public_key,
@@ -652,21 +663,33 @@ def _policy_satisfied(action: SignedAction, request: ActionSubmitRequest, now: d
     )
     bank_credential_valid = "bank_handshake" not in methods or bool(request.bank_credential_id)
     liveness = supplied_attestations.get("camera_liveness")
+    liveness_signature = attestation_signature_results.get("camera_liveness")
     liveness_valid = "camera_liveness" not in methods or (
         liveness is not None
         and liveness.result == "passed"
         and (liveness.expires_at is None or _aware(liveness.expires_at) >= now)
+        and liveness_signature is not None
+        and liveness_signature.valid
     )
     manual_review = supplied_attestations.get("manual_review")
+    manual_review_signature = attestation_signature_results.get("manual_review")
     manual_review_valid = "manual_review" not in methods or (
         manual_review is not None and manual_review.result in {"passed", "manual_review"}
+        and manual_review_signature is not None
+        and manual_review_signature.valid
     )
+    attestation_signatures_valid = all(result.valid for result in attestation_signature_results.values())
     return {
         "signature_valid": signature_valid,
         "bank_credential_valid": bank_credential_valid,
-        "attestation_policy_satisfied": liveness_valid and manual_review_valid,
+        "attestation_signatures_valid": attestation_signatures_valid,
+        "attestation_policy_satisfied": liveness_valid and manual_review_valid and attestation_signatures_valid,
         "required_methods": sorted(methods),
         "provided_attestations": sorted(supplied_attestations.keys()),
+        "attestation_signature_results": {
+            attestation_type: {"valid": result.valid, "error": result.error}
+            for attestation_type, result in attestation_signature_results.items()
+        },
     }
 
 
@@ -704,6 +727,10 @@ def submit_action(db: Session, request: ActionSubmitRequest) -> ActionSubmitResp
     action.status = "approved" if approved else "rejected"
 
     for att in request.attestations:
+        attestation_result = verification["attestation_signature_results"].get(
+            att.attestation_type,
+            {"valid": False, "error": "not_verified"},
+        )
         action_attestation = ActionAttestation(
             action_attestation_id=new_id("aatt"),
             action_id=action.action_id,
@@ -715,6 +742,8 @@ def submit_action(db: Session, request: ActionSubmitRequest) -> ActionSubmitResp
             expires_at=att.expires_at,
             key_id=att.key_id,
             signature=att.signature,
+            signature_verified=attestation_result["valid"],
+            verification_error=attestation_result["error"],
             payload=att.payload,
         )
         db.add(action_attestation)
@@ -770,6 +799,8 @@ def get_action(db: Session, action_id: str) -> ActionResponse:
                 "expires_at": att.expires_at,
                 "key_id": att.key_id,
                 "signature": att.signature,
+                "signature_verified": att.signature_verified,
+                "verification_error": att.verification_error,
                 "payload": att.payload,
             }
             for att in action.attestations

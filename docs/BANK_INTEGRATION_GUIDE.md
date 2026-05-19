@@ -149,7 +149,8 @@ Policy examples:
 - `aal3`: passkey plus bank handshake credential plus camera/liveness result.
 
 Camera/liveness media remains with the bank or liveness provider. Tovbase stores
-only evidence hashes and signed result metadata.
+only evidence hashes and signed result metadata. Provider signature requirements
+are documented in `docs/ACTION_ATTESTATION_PROVIDER_WORKFLOW.md`.
 
 ## 7. Mirror readiness
 

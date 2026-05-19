@@ -138,6 +138,8 @@ class ActionAttestation(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     key_id: Mapped[str] = mapped_column(Text, nullable=False)
     signature: Mapped[str] = mapped_column(Text, nullable=False)
+    signature_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    verification_error: Mapped[str | None] = mapped_column(Text)
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     action: Mapped[SignedAction] = relationship(back_populates="attestations")

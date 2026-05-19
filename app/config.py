@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     did_signing_private_key_b64: str = ""
     did_verifying_keys_json: str = ""
     trusted_bank_keys_json: str = ""
+    trusted_attestation_provider_keys_json: str = ""
     registry_publication_name: str = "did_registry_publication"
     action_challenge_ttl_seconds: int = 300
 

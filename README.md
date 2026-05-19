@@ -25,6 +25,7 @@ docs/
   BANK_INTEGRATION_GUIDE.md      # pilot-bank integration guide
   BANK_MIRROR_RUNBOOK.md         # PostgreSQL read-mirror setup
   BANK_ATTESTATION_WORKFLOW.md   # signed bank attestation and revocation flow
+  ACTION_ATTESTATION_PROVIDER_WORKFLOW.md # camera/liveness provider signature flow
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
@@ -70,6 +71,7 @@ cp .env.example .env
 pip install -e ".[dev]"
 python scripts/generate_signing_key.py --node-id tovbase-id-dev-1 --key-id tovbase-registry-dev-1
 python scripts/generate_bank_key.py --bank-id bank-a --key-id bank-a-signing-1
+python scripts/generate_provider_key.py --provider-id bank-a-liveness --key-id bank-a-liveness-1
 python scripts/migrate.py
 python scripts/configure_publication.py --print-sql
 uvicorn app.main:app --reload --port 8001

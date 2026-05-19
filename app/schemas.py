@@ -282,6 +282,21 @@ class ActionAttestationInput(StrictModel):
         return normalize_hash(value)
 
 
+class ActionAttestationRecord(BaseModel):
+    action_attestation_id: str
+    attestation_type: str
+    provider_id: str
+    evidence_hash: str
+    result: str
+    issued_at: datetime
+    expires_at: datetime | None = None
+    key_id: str
+    signature: str
+    signature_verified: bool
+    verification_error: str | None = None
+    payload: dict[str, Any]
+
+
 class ActionSubmitRequest(StrictModel):
     action_id: str = Field(min_length=1)
     bank_credential_id: str | None = None
@@ -314,7 +329,7 @@ class ActionResponse(BaseModel):
     signed_at: datetime | None = None
     status: str
     verification_result: dict[str, Any] | None = None
-    attestations: list[ActionAttestationInput] = Field(default_factory=list)
+    attestations: list[ActionAttestationRecord] = Field(default_factory=list)
 
 
 class DidHealthResponse(BaseModel):

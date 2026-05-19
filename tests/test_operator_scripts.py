@@ -3,6 +3,7 @@ import re
 
 from app.services.crypto import RegistrySigner
 from scripts.generate_bank_key import generate_bank_key_material
+from scripts.generate_provider_key import generate_provider_key_material
 from scripts.generate_signing_key import generate_key_material
 
 
@@ -51,4 +52,15 @@ def test_generate_bank_key_outputs_trusted_key_record() -> None:
     assert re.fullmatch(r"[A-Za-z0-9_-]+", material["bank_private_key_b64"])
     assert material["trusted_key_record"]["bank_id"] == "bank-a"
     assert material["trusted_key_record"]["key_id"] == "bank-a-signing-1"
+    assert material["trusted_key_record"]["public_key_jwk"]["kty"] == "OKP"
+
+
+def test_generate_provider_key_outputs_trusted_key_record() -> None:
+    material = generate_provider_key_material("bank-a-liveness", "bank-a-liveness-1")
+
+    assert material["provider_id"] == "bank-a-liveness"
+    assert material["key_id"] == "bank-a-liveness-1"
+    assert re.fullmatch(r"[A-Za-z0-9_-]+", material["provider_private_key_b64"])
+    assert material["trusted_key_record"]["provider_id"] == "bank-a-liveness"
+    assert material["trusted_key_record"]["key_id"] == "bank-a-liveness-1"
     assert material["trusted_key_record"]["public_key_jwk"]["kty"] == "OKP"

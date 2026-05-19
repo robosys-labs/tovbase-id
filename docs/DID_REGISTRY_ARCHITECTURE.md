@@ -310,6 +310,11 @@ capture under its own compliance boundary and sends Tovbase only:
 This lets a bank require "camera-based attestation" while keeping biometric
 payloads out of the Tovbase registry.
 
+Action-level attestations are verified against
+`TRUSTED_ATTESTATION_PROVIDER_KEYS_JSON`. A required `camera_liveness`
+attestation is accepted only when the provider signature is valid, the result is
+`passed`, and the attestation has not expired.
+
 ### Timestamping and speed targets
 
 Digital signatures and receipts carry timestamps by design:
