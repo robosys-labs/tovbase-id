@@ -28,6 +28,7 @@ docs/
   ACTION_ATTESTATION_PROVIDER_WORKFLOW.md # camera/liveness provider signature flow
   SIGNED_ACTION_PERFORMANCE.md   # signed-action timing benchmark
   ANCHORING_WORKFLOW.md          # Merkle root windows and proof generation
+  NATS_EVENT_PLANE.md            # optional JetStream registry event publisher
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
@@ -86,6 +87,13 @@ For PostgreSQL mirror/publication work, install the optional driver:
 
 ```bash
 pip install -e ".[dev,postgres]"
+```
+
+For optional NATS JetStream event-plane work:
+
+```bash
+pip install -e ".[dev,nats]"
+python scripts/publish_events_to_nats.py --dry-run --limit 10
 ```
 
 ## Implemented registry surface

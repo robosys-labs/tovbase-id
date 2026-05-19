@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     trusted_bank_keys_json: str = ""
     trusted_attestation_provider_keys_json: str = ""
     registry_publication_name: str = "did_registry_publication"
+    nats_url: str = "nats://127.0.0.1:4222"
+    nats_stream_name: str = "TOVBASE_ID_REGISTRY"
+    nats_subject_prefix: str = "tovbase.id.registry"
     action_challenge_ttl_seconds: int = 300
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

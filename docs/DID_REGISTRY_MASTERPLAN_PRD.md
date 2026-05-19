@@ -205,6 +205,8 @@ registered and attested without Tovbase storing the underlying identity data.
 - Run a 3-node bank consortium simulation.
 - Make PostgreSQL read models rebuildable from `registry_events`.
 - Document conflict semantics and node recovery.
+- Current status: optional out-of-band JetStream serialization and publisher
+  prototype is implemented for `registry_events`.
 
 ### P3: Anchoring
 

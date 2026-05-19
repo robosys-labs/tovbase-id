@@ -877,6 +877,8 @@ This phase is enough for the first banking pilot.
   JetStream. Prefer JetStream over etcd for the registry event plane because it
   provides a lightweight single-binary runtime, persistent streams, replayable
   consumers, and optimized Raft clustering.
+- The current prototype serializes `registry_events` to subjects under
+  `tovbase.id.registry.>` through `scripts/publish_events_to_nats.py`.
 - The log orders registration events and attestation updates.
 - Conflict handling should remain boring:
   - Same `hash_id` and same DID/public-key fingerprint is idempotent.
