@@ -6,6 +6,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from app.schemas import BankAttestationInput, BankAttestationRevokeRequest
+from app.services.api_keys import hash_api_key
 from app.services.bank_keys import bank_attestation_envelope, bank_attestation_revocation_envelope
 from app.services.crypto import canonical_json_bytes
 
@@ -18,6 +19,8 @@ BANK_PUBLIC_JWK = {
 }
 BANK_ID = "bank-a"
 BANK_KEY_ID = "bank-a-signing-1"
+BANK_API_KEY = "test-bank-api-key"
+ADMIN_API_KEY = "test-admin-api-key"
 PROVIDER_PRIVATE_KEY = ed25519.Ed25519PrivateKey.generate()
 PROVIDER_PUBLIC_BYTES = PROVIDER_PRIVATE_KEY.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
 PROVIDER_PUBLIC_JWK = {
@@ -45,6 +48,42 @@ def trusted_bank_keys_json() -> str:
             }
         ]
     )
+
+
+def bank_api_keys_json() -> str:
+    return json.dumps(
+        [
+            {
+                "bank_id": BANK_ID,
+                "key_id": "bank-a-api-1",
+                "api_key_hash": hash_api_key(BANK_API_KEY),
+                "status": "active",
+            }
+        ]
+    )
+
+
+def admin_api_keys_json() -> str:
+    return json.dumps(
+        [
+            {
+                "key_id": "admin-api-1",
+                "api_key_hash": hash_api_key(ADMIN_API_KEY),
+                "status": "active",
+            }
+        ]
+    )
+
+
+def bank_headers(bank_id: str = BANK_ID, api_key: str = BANK_API_KEY) -> dict[str, str]:
+    return {
+        "X-Tovbase-Bank-Id": bank_id,
+        "X-Tovbase-Api-Key": api_key,
+    }
+
+
+def admin_headers(api_key: str = ADMIN_API_KEY) -> dict[str, str]:
+    return {"X-Tovbase-Admin-Key": api_key}
 
 
 def trusted_provider_keys_json() -> str:

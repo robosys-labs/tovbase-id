@@ -574,6 +574,23 @@ work without public-chain availability.
 
 All endpoints live under the existing `/v1` prefix.
 
+Mutating bank endpoints require request-level bank authentication:
+
+```text
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
+```
+
+Operator-only audit and anchor creation endpoints require:
+
+```text
+X-Tovbase-Admin-Key: <admin API key>
+```
+
+API keys authorize the caller to mutate registry state. They do not replace
+cryptographic signatures on bank attestations, provider attestations, user
+actions, or registry receipts.
+
 ### `POST /v1/did/register`
 
 Registers a precomputed identity hash.
@@ -626,6 +643,8 @@ Response:
 
 Behavior:
 
+- Requires bank API authentication. If `bank_id` is present in the body, it
+  must match `X-Tovbase-Bank-Id`.
 - Reject raw PII field names and unsupported fields at schema validation.
 - Return idempotently for duplicate `hash_id` if the public key fingerprint and
   DID match the existing record.
@@ -728,7 +747,7 @@ Adds or updates a bank attestation for an existing hash.
 
 Behavior:
 
-- Requires bank authentication.
+- Requires bank API authentication.
 - Verifies the bank attestation signature against `TRUSTED_BANK_KEYS_JSON`.
 - Rejects attestations for unknown hashes unless explicitly configured for
   queue-and-retry during mirror outage scenarios.
@@ -738,16 +757,18 @@ Behavior:
 
 Revokes an existing bank attestation. The revocation request is itself signed by
 the bank key and records `revoked_at` without deleting the original attestation.
+Requires bank API authentication.
 
 ### `GET /v1/did/attest/{hash_id}/audit`
 
 Exports all attestations for a hash, including revoked records, signatures,
-verification status, payload metadata, and timestamps.
+verification status, payload metadata, and timestamps. Requires admin API
+authentication.
 
 ### `POST /v1/did/actions/challenge`
 
 Creates a timestamped action challenge for signing a document, media object,
-mandate, or consent envelope.
+mandate, or consent envelope. Requires bank API authentication.
 
 Request:
 
@@ -900,7 +921,7 @@ This phase is enough for the first banking pilot.
 
 The v1 anchoring endpoints are:
 
-- `POST /v1/did/anchors`
+- `POST /v1/did/anchors` (admin API key)
 - `GET /v1/did/anchors/{anchor_id}`
 - `GET /v1/did/anchors/{anchor_id}/proof/{receipt_id}`
 
@@ -969,6 +990,8 @@ block DID registry development.
 - Registry hashes are fixed-length SHA-256 values: canonical lowercase hex
   internally, with any accepted base64url input decoded and normalized before
   persistence.
+- Bank/admin mutation endpoints reject missing, inactive, or wrong-scope API
+  keys before writing registry state.
 - `POST /v1/did/register` is idempotent for exact duplicate registrations.
 - Conflicting duplicate registrations return `409 Conflict`.
 - Every successful registration produces a signed, timestamped receipt.

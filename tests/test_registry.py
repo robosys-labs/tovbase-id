@@ -12,7 +12,13 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, engine, init_db
 from app.main import app
-from tests.helpers import sign_action_attestation_payload, sign_bank_attestation_payload, sign_bank_revocation_payload
+from tests.helpers import (
+    admin_headers,
+    bank_headers,
+    sign_action_attestation_payload,
+    sign_bank_attestation_payload,
+    sign_bank_revocation_payload,
+)
 
 
 def b64url(value: bytes) -> str:
@@ -69,7 +75,7 @@ def register_payload(
 
 
 def register_identity(client: TestClient, user_key: tuple[ed25519.Ed25519PrivateKey, dict[str, str], str, str]) -> dict:
-    response = client.post("/v1/did/register", json=register_payload(user_key))
+    response = client.post("/v1/did/register", json=register_payload(user_key), headers=bank_headers())
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -96,7 +102,7 @@ def test_register_and_resolve_by_did_and_hash(client: TestClient, user_key) -> N
 
 def test_duplicate_registration_is_idempotent(client: TestClient, user_key) -> None:
     first = register_identity(client, user_key)
-    second_response = client.post("/v1/did/register", json=register_payload(user_key))
+    second_response = client.post("/v1/did/register", json=register_payload(user_key), headers=bank_headers())
 
     assert second_response.status_code == 200
     second = second_response.json()
@@ -111,7 +117,7 @@ def test_conflicting_duplicate_registration_returns_409(client: TestClient, user
     payload = register_payload(other_key, hash_id=registered["hash_id"])
     payload["device_pubkey_fingerprint"] = sha256_hex("conflicting-fingerprint")
 
-    response = client.post("/v1/did/register", json=payload)
+    response = client.post("/v1/did/register", json=payload, headers=bank_headers())
 
     assert response.status_code == 409
     assert "different public-key fingerprint" in response.json()["detail"]
@@ -121,7 +127,7 @@ def test_invalid_hash_format_is_rejected(client: TestClient, user_key) -> None:
     payload = register_payload(user_key)
     payload["hash_id"] = "not-a-sha256"
 
-    response = client.post("/v1/did/register", json=payload)
+    response = client.post("/v1/did/register", json=payload, headers=bank_headers())
 
     assert response.status_code == 422
 
@@ -130,9 +136,16 @@ def test_forbidden_pii_like_fields_are_rejected(client: TestClient, user_key) ->
     payload = register_payload(user_key)
     payload["metadata"] = {"nin": "12345678901"}
 
-    response = client.post("/v1/did/register", json=payload)
+    response = client.post("/v1/did/register", json=payload, headers=bank_headers())
 
     assert response.status_code == 422
+
+
+def test_register_requires_bank_api_key(client: TestClient, user_key) -> None:
+    response = client.post("/v1/did/register", json=register_payload(user_key))
+
+    assert response.status_code == 401
+    assert "valid bank API key required" in response.json()["detail"]
 
 
 def test_receipt_verification_success_and_failure(client: TestClient, user_key) -> None:
@@ -189,6 +202,7 @@ def test_attestation_upsert(client: TestClient, user_key) -> None:
     attestation_hash = sha256_hex("bank-a-account-evidence")
     response = client.post(
         "/v1/did/attest",
+        headers=bank_headers(),
         json={
             "hash_id": registered["hash_id"],
             "bank_id": "bank-a",
@@ -208,6 +222,27 @@ def test_attestation_upsert(client: TestClient, user_key) -> None:
     assert {att["attestation_type"] for att in resolved["attestations"]} == {"kyc_hash_seen", "bank_account_seen"}
 
 
+def test_bank_api_key_must_match_request_bank_id(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    response = client.post(
+        "/v1/did/attest",
+        headers=bank_headers(bank_id="bank-a"),
+        json={
+            "hash_id": registered["hash_id"],
+            "bank_id": "bank-b",
+            "attestation": sign_bank_attestation_payload(
+                hash_id=registered["hash_id"],
+                bank_id="bank-b",
+                attestation_type="bank_account_seen",
+                attestation_hash=sha256_hex("bank-b-account-evidence"),
+            ),
+        },
+    )
+
+    assert response.status_code == 403
+    assert "does not match request bank_id" in response.json()["detail"]
+
+
 def test_invalid_bank_attestation_signature_is_rejected(client: TestClient, user_key) -> None:
     registered = register_identity(client, user_key)
     attestation = sign_bank_attestation_payload(
@@ -219,6 +254,7 @@ def test_invalid_bank_attestation_signature_is_rejected(client: TestClient, user
 
     response = client.post(
         "/v1/did/attest",
+        headers=bank_headers(),
         json={"hash_id": registered["hash_id"], "bank_id": "bank-a", "attestation": attestation},
     )
 
@@ -230,6 +266,7 @@ def test_attestation_revoke_and_audit_export(client: TestClient, user_key) -> No
     registered = register_identity(client, user_key)
     revoke_response = client.post(
         "/v1/did/attest/revoke",
+        headers=bank_headers(),
         json=sign_bank_revocation_payload(hash_id=registered["hash_id"]),
     )
 
@@ -239,7 +276,7 @@ def test_attestation_revoke_and_audit_export(client: TestClient, user_key) -> No
     resolved = client.get(f"/v1/did/{registered['did']}").json()
     assert resolved["attestations"] == []
 
-    audit_response = client.get(f"/v1/did/attest/{registered['hash_id']}/audit")
+    audit_response = client.get(f"/v1/did/attest/{registered['hash_id']}/audit", headers=admin_headers())
     assert audit_response.status_code == 200
     audit = audit_response.json()
     assert audit["hash_id"] == registered["hash_id"]
@@ -248,11 +285,39 @@ def test_attestation_revoke_and_audit_export(client: TestClient, user_key) -> No
     assert audit["attestations"][0]["signature"]
 
 
+def test_attestation_audit_requires_admin_api_key(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    response = client.get(f"/v1/did/attest/{registered['hash_id']}/audit")
+
+    assert response.status_code == 401
+    assert "valid admin API key required" in response.json()["detail"]
+
+
+def test_action_challenge_requires_matching_bank_api_key(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    response = client.post(
+        "/v1/did/actions/challenge",
+        headers=bank_headers(bank_id="bank-a"),
+        json={
+            "did": registered["did"],
+            "bank_id": "bank-b",
+            "action_type": "document_signature",
+            "document_hash": sha256_hex("document-bytes"),
+            "requested_attestation": {"level": "instant", "methods": ["passkey"], "max_age_seconds": 300},
+            "policy_version": "bank-b-actions-v1",
+        },
+    )
+
+    assert response.status_code == 403
+    assert "does not match request bank_id" in response.json()["detail"]
+
+
 def test_passkey_only_action_can_be_approved(client: TestClient, user_key) -> None:
     private_key, _, _, _ = user_key
     registered = register_identity(client, user_key)
     challenge_response = client.post(
         "/v1/did/actions/challenge",
+        headers=bank_headers(),
         json={
             "did": registered["did"],
             "bank_id": "bank-a",
@@ -285,6 +350,7 @@ def test_camera_liveness_policy_rejects_missing_attestation(client: TestClient, 
     registered = register_identity(client, user_key)
     challenge = client.post(
         "/v1/did/actions/challenge",
+        headers=bank_headers(),
         json={
             "did": registered["did"],
             "bank_id": "bank-a",
@@ -319,6 +385,7 @@ def test_camera_liveness_policy_can_be_approved(client: TestClient, user_key) ->
     registered = register_identity(client, user_key)
     challenge = client.post(
         "/v1/did/actions/challenge",
+        headers=bank_headers(),
         json={
             "did": registered["did"],
             "bank_id": "bank-a",
@@ -366,6 +433,7 @@ def test_camera_liveness_policy_rejects_invalid_provider_signature(client: TestC
     registered = register_identity(client, user_key)
     challenge = client.post(
         "/v1/did/actions/challenge",
+        headers=bank_headers(),
         json={
             "did": registered["did"],
             "bank_id": "bank-a",

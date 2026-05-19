@@ -28,6 +28,7 @@ docs/
   ACTION_ATTESTATION_PROVIDER_WORKFLOW.md # camera/liveness provider signature flow
   SIGNED_ACTION_PERFORMANCE.md   # signed-action timing benchmark
   ANCHORING_WORKFLOW.md          # Merkle root windows and proof generation
+  API_AUTHENTICATION.md          # bank/admin API key contract
   NATS_EVENT_PLANE.md            # optional JetStream registry event publisher
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
@@ -75,6 +76,8 @@ pip install -e ".[dev]"
 python scripts/generate_signing_key.py --node-id tovbase-id-dev-1 --key-id tovbase-registry-dev-1
 python scripts/generate_bank_key.py --bank-id bank-a --key-id bank-a-signing-1
 python scripts/generate_provider_key.py --provider-id bank-a-liveness --key-id bank-a-liveness-1
+python scripts/generate_api_key.py --bank-id bank-a --key-id bank-a-api-1
+python scripts/generate_api_key.py --admin --key-id admin-api-1
 python scripts/migrate.py
 python scripts/configure_publication.py --print-sql
 uvicorn app.main:app --reload --port 8001
@@ -96,21 +99,28 @@ pip install -e ".[dev,nats]"
 python scripts/publish_events_to_nats.py --dry-run --limit 10
 ```
 
+## API authentication
+
+Bank write endpoints require `X-Tovbase-Bank-Id` and `X-Tovbase-Api-Key`.
+Operator endpoints such as audit export and anchor creation require
+`X-Tovbase-Admin-Key`. Store only hashed key records in `BANK_API_KEYS_JSON`
+and `ADMIN_API_KEYS_JSON`; see `docs/API_AUTHENTICATION.md`.
+
 ## Implemented registry surface
 
-- `POST /v1/did/register`
+- `POST /v1/did/register` (bank API key)
 - `GET /v1/did/{did}`
 - `GET /v1/did/hash/{hash_id}`
 - `POST /v1/did/receipt/verify`
 - `GET /v1/did/keys/current`
 - `GET /v1/did/keys`
-- `POST /v1/did/attest`
-- `POST /v1/did/attest/revoke`
-- `GET /v1/did/attest/{hash_id}/audit`
-- `POST /v1/did/actions/challenge`
+- `POST /v1/did/attest` (bank API key)
+- `POST /v1/did/attest/revoke` (bank API key)
+- `GET /v1/did/attest/{hash_id}/audit` (admin API key)
+- `POST /v1/did/actions/challenge` (bank API key)
 - `POST /v1/did/actions/submit`
 - `GET /v1/did/actions/{action_id}`
-- `POST /v1/did/anchors`
+- `POST /v1/did/anchors` (admin API key)
 - `GET /v1/did/anchors/{anchor_id}`
 - `GET /v1/did/anchors/{anchor_id}/proof/{receipt_id}`
 - `GET /v1/did/health`

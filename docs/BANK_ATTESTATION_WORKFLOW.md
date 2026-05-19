@@ -65,6 +65,8 @@ unsupported algorithm, or the signature does not verify.
 
 ```text
 POST /v1/did/attest
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
 ```
 
 Upsert key:
@@ -96,6 +98,8 @@ Submit:
 
 ```text
 POST /v1/did/attest/revoke
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
 ```
 
 Revoked attestations disappear from normal DID resolution but remain in audit
@@ -105,6 +109,7 @@ exports.
 
 ```text
 GET /v1/did/attest/{hash_id}/audit
+X-Tovbase-Admin-Key: <admin API key>
 ```
 
 The audit export returns all attestations for the hash, including revoked

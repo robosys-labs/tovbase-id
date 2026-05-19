@@ -273,6 +273,9 @@ Optional L3
 - Registry signing key is separate from user keys and should be KMS/HSM-backed
   in production.
 - Bank attestations require bank authentication and signature verification.
+- Bank write endpoints require `X-Tovbase-Bank-Id` plus
+  `X-Tovbase-Api-Key`; operator-only audit/anchor endpoints require
+  `X-Tovbase-Admin-Key`.
 - Signatures are verified, not decoded. If the bank needs confidential
   document/media content, that content is encrypted separately to the bank while
   Tovbase stores only content hashes and approval metadata.

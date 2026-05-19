@@ -32,7 +32,11 @@ const request = await createRegistrationRequest({
 
 await fetch("https://api.tovbase.com/v1/did/register", {
   method: "POST",
-  headers: { "content-type": "application/json" },
+  headers: {
+    "content-type": "application/json",
+    "X-Tovbase-Bank-Id": "bank-a",
+    "X-Tovbase-Api-Key": bankApiKey,
+  },
   body: JSON.stringify(request),
 });
 ```

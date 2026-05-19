@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from app.services.anchors import merkle_proof, merkle_root, verify_merkle_proof
-from tests.helpers import b64url
+from tests.helpers import admin_headers, b64url
 from tests.test_registry import register_identity
 
 
@@ -41,6 +41,7 @@ def test_anchor_create_and_receipt_proof(client) -> None:
 
     anchor_response = client.post(
         "/v1/did/anchors",
+        headers=admin_headers(),
         json={
             "window_start": window_start.isoformat(),
             "window_end": window_end.isoformat(),
@@ -66,6 +67,7 @@ def test_anchor_rejects_empty_window(client) -> None:
     now = datetime.now(UTC)
     response = client.post(
         "/v1/did/anchors",
+        headers=admin_headers(),
         json={
             "window_start": (now - timedelta(days=2)).isoformat(),
             "window_end": (now - timedelta(days=1)).isoformat(),
@@ -74,3 +76,17 @@ def test_anchor_rejects_empty_window(client) -> None:
 
     assert response.status_code == 400
     assert "empty receipt window" in response.json()["detail"]
+
+
+def test_anchor_create_requires_admin_api_key(client) -> None:
+    now = datetime.now(UTC)
+    response = client.post(
+        "/v1/did/anchors",
+        json={
+            "window_start": (now - timedelta(minutes=5)).isoformat(),
+            "window_end": now.isoformat(),
+        },
+    )
+
+    assert response.status_code == 401
+    assert "valid admin API key required" in response.json()["detail"]

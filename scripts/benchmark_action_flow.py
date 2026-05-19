@@ -25,9 +25,12 @@ from app.config import settings  # noqa: E402
 from app.db import Base, engine, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.schemas import ActionAttestationInput, BankAttestationInput  # noqa: E402
+from app.services.api_keys import hash_api_key  # noqa: E402
 from app.services.bank_keys import bank_attestation_envelope  # noqa: E402
 from app.services.crypto import canonical_json_bytes  # noqa: E402
 from app.services.provider_keys import action_attestation_envelope  # noqa: E402
+
+BENCHMARK_BANK_API_KEY = "benchmark-bank-api-key"
 
 
 def b64url(value: bytes) -> str:
@@ -76,6 +79,23 @@ def _configure_trusted_keys(
             }
         ]
     )
+    settings.bank_api_keys_json = json.dumps(
+        [
+            {
+                "bank_id": bank_id,
+                "key_id": f"{bank_id}-api-benchmark",
+                "api_key_hash": hash_api_key(BENCHMARK_BANK_API_KEY),
+                "status": "active",
+            }
+        ]
+    )
+
+
+def _bank_headers(bank_id: str) -> dict[str, str]:
+    return {
+        "X-Tovbase-Bank-Id": bank_id,
+        "X-Tovbase-Api-Key": BENCHMARK_BANK_API_KEY,
+    }
 
 
 def _signed_bank_attestation(
@@ -162,6 +182,7 @@ def _register_identity(
     credential_id = b64url(hashlib.sha256(user_public_bytes + b"credential").digest())
     response = client.post(
         "/v1/did/register",
+        headers=_bank_headers(bank_id),
         json={
             "hash_id": hash_id,
             "hash_algorithm": "sha256",
@@ -202,6 +223,7 @@ def _action_round_trip(
     challenge_started = time.perf_counter()
     challenge = client.post(
         "/v1/did/actions/challenge",
+        headers=_bank_headers(bank_id),
         json={
             "did": registered["did"],
             "bank_id": bank_id,

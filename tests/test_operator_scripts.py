@@ -2,6 +2,7 @@ import json
 import re
 
 from app.services.crypto import RegistrySigner
+from scripts.generate_api_key import generate_api_key_record
 from scripts.generate_bank_key import generate_bank_key_material
 from scripts.generate_provider_key import generate_provider_key_material
 from scripts.generate_signing_key import generate_key_material
@@ -64,3 +65,25 @@ def test_generate_provider_key_outputs_trusted_key_record() -> None:
     assert material["trusted_key_record"]["provider_id"] == "bank-a-liveness"
     assert material["trusted_key_record"]["key_id"] == "bank-a-liveness-1"
     assert material["trusted_key_record"]["public_key_jwk"]["kty"] == "OKP"
+
+
+def test_generate_api_key_outputs_hashed_bank_record() -> None:
+    material = generate_api_key_record(key_id="bank-a-api-1", bank_id="bank-a", api_key="plain-secret")
+
+    assert material["api_key"] == "plain-secret"
+    record = material["record"]
+    assert record["bank_id"] == "bank-a"
+    assert record["key_id"] == "bank-a-api-1"
+    assert record["status"] == "active"
+    assert record["api_key_hash"] != "plain-secret"
+    assert re.fullmatch(r"[0-9a-f]{64}", record["api_key_hash"])
+
+
+def test_generate_api_key_outputs_hashed_admin_record() -> None:
+    material = generate_api_key_record(key_id="admin-api-1", api_key="admin-secret")
+
+    assert material["api_key"] == "admin-secret"
+    record = material["record"]
+    assert "bank_id" not in record
+    assert record["key_id"] == "admin-api-1"
+    assert re.fullmatch(r"[0-9a-f]{64}", record["api_key_hash"])

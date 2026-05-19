@@ -50,7 +50,34 @@ GET /v1/did/keys
 
 This lets old receipts keep verifying by `key_id` after the signing key changes.
 
-## 3. Hash identity data inside the bank boundary
+## 3. Configure bank API authentication
+
+Generate a bank API key record:
+
+```bash
+python scripts/generate_api_key.py --bank-id bank-a --key-id bank-a-api-1
+```
+
+Copy the printed `env_value` into `BANK_API_KEYS_JSON` in the deployment secret
+store. The plaintext `api_key` is shown once and should be stored only in the
+bank or operator secret manager.
+
+Bank write requests include:
+
+```text
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
+```
+
+Audit export and anchor creation use an operator key generated with:
+
+```bash
+python scripts/generate_api_key.py --admin --key-id admin-api-1
+```
+
+See `docs/API_AUTHENTICATION.md` for the endpoint matrix.
+
+## 4. Hash identity data inside the bank boundary
 
 Use the browser reference in `sdk/browser/tovbase-id-sdk.mjs` as the audit
 baseline for web and mobile SDK work.
@@ -93,10 +120,12 @@ It does not contain:
 - bank customer id
 - user private key
 
-## 4. Register the DID
+## 5. Register the DID
 
 ```text
 POST /v1/did/register
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
 ```
 
 The registry stores the hash, DID document, append-only event, signed receipt,
@@ -109,7 +138,7 @@ documented in `docs/BANK_ATTESTATION_WORKFLOW.md`.
 Duplicate exact registrations are idempotent. A duplicate `hash_id` with a
 different public-key fingerprint returns `409 Conflict`.
 
-## 5. Batch migration format
+## 6. Batch migration format
 
 Existing bank customers can be migrated with precomputed registration entries
 using:
@@ -124,12 +153,14 @@ Each batch entry is the same no-PII request body accepted by
 processor can stream each entry through the normal registration endpoint or a
 future bulk endpoint.
 
-## 6. Signed official actions
+## 7. Signed official actions
 
 Create a timestamped action challenge:
 
 ```text
 POST /v1/did/actions/challenge
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
 ```
 
 The user signs the returned `challenge_hash`. The challenge envelope includes
@@ -155,7 +186,7 @@ are documented in `docs/ACTION_ATTESTATION_PROVIDER_WORKFLOW.md`.
 Backend timing can be checked with `scripts/benchmark_action_flow.py`; see
 `docs/SIGNED_ACTION_PERFORMANCE.md`.
 
-## 7. Mirror readiness
+## 8. Mirror readiness
 
 The pilot read mirror uses PostgreSQL logical replication over the registry
 tables. The operational runbook is `docs/BANK_MIRROR_RUNBOOK.md`.

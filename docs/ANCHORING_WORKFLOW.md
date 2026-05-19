@@ -22,6 +22,7 @@ SHA-256(left_bytes || right_bytes)
 
 ```text
 POST /v1/did/anchors
+X-Tovbase-Admin-Key: <admin API key>
 ```
 
 Request:

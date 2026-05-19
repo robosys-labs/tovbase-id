@@ -4,6 +4,7 @@ from typing import Annotated, TypeVar
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.auth import assert_bank_scope, require_admin_api_key, require_bank_api_key
 from app.db import get_db
 from app.schemas import (
     ActionChallengeRequest,
@@ -28,11 +29,14 @@ from app.schemas import (
     normalize_hash,
 )
 from app.services import anchors, registry
+from app.services.api_keys import AdminPrincipal, BankPrincipal
 from app.services.registry import RegistryError
 
 router = APIRouter(prefix="/v1/did", tags=["did-registry"])
 T = TypeVar("T")
 DBSession = Annotated[Session, Depends(get_db)]
+BankAuth = Annotated[BankPrincipal, Depends(require_bank_api_key)]
+AdminAuth = Annotated[AdminPrincipal, Depends(require_admin_api_key)]
 
 
 def _service(call: Callable[[], T]) -> T:
@@ -43,7 +47,8 @@ def _service(call: Callable[[], T]) -> T:
 
 
 @router.post("/register", response_model=DidRegisterResponse)
-def register(request: DidRegisterRequest, db: DBSession) -> DidRegisterResponse:
+def register(request: DidRegisterRequest, principal: BankAuth, db: DBSession) -> DidRegisterResponse:
+    request.bank_id = assert_bank_scope(principal, request.bank_id)
     return _service(lambda: registry.register_identity(db, request))
 
 
@@ -77,17 +82,19 @@ def registry_keys() -> list[RegistryKeyResponse]:
 
 
 @router.post("/attest", response_model=DidAttestResponse)
-def attest(request: DidAttestRequest, db: DBSession) -> DidAttestResponse:
+def attest(request: DidAttestRequest, principal: BankAuth, db: DBSession) -> DidAttestResponse:
+    assert_bank_scope(principal, request.bank_id)
     return _service(lambda: registry.upsert_attestation(db, request))
 
 
 @router.post("/attest/revoke", response_model=DidAttestResponse)
-def revoke_attestation(request: BankAttestationRevokeRequest, db: DBSession) -> DidAttestResponse:
+def revoke_attestation(request: BankAttestationRevokeRequest, principal: BankAuth, db: DBSession) -> DidAttestResponse:
+    assert_bank_scope(principal, request.bank_id)
     return _service(lambda: registry.revoke_attestation(db, request))
 
 
 @router.get("/attest/{hash_id}/audit", response_model=BankAttestationAuditResponse)
-def export_attestation_audit(hash_id: str, db: DBSession) -> BankAttestationAuditResponse:
+def export_attestation_audit(hash_id: str, _: AdminAuth, db: DBSession) -> BankAttestationAuditResponse:
     try:
         normalized = normalize_hash(hash_id)
     except ValueError as exc:
@@ -98,8 +105,10 @@ def export_attestation_audit(hash_id: str, db: DBSession) -> BankAttestationAudi
 @router.post("/actions/challenge", response_model=ActionChallengeResponse)
 def create_action_challenge(
     request: ActionChallengeRequest,
+    principal: BankAuth,
     db: DBSession,
 ) -> ActionChallengeResponse:
+    assert_bank_scope(principal, request.bank_id)
     return _service(lambda: registry.create_action_challenge(db, request))
 
 
@@ -114,7 +123,7 @@ def get_action(action_id: str, db: DBSession) -> ActionResponse:
 
 
 @router.post("/anchors", response_model=AnchorResponse)
-def create_anchor(request: AnchorCreateRequest, db: DBSession) -> AnchorResponse:
+def create_anchor(request: AnchorCreateRequest, _: AdminAuth, db: DBSession) -> AnchorResponse:
     return _service(lambda: anchors.create_anchor(db, request))
 
 
