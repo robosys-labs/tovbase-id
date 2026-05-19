@@ -153,6 +153,7 @@ class RegistryAnchor(Base):
     window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     merkle_root: Mapped[str] = mapped_column(String(64), nullable=False)
     hash_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    leaf_hashes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     anchor_network: Mapped[str | None] = mapped_column(String(32))
     anchor_txid: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -212,6 +212,8 @@ registered and attested without Tovbase storing the underlying identity data.
 - Store root windows in `registry_anchors`.
 - Provide optional public-chain anchoring adapter only when partner demand
   justifies it.
+- Current status: internal Merkle anchor windows and receipt inclusion proofs
+  are implemented. External-chain publication remains optional future work.
 
 ## System architecture
 

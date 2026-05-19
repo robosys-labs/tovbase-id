@@ -889,10 +889,18 @@ This phase is enough for the first banking pilot.
 
 - Periodically compute a Merkle root over new receipt payload hashes.
 - Store root and proof window in `registry_anchors`.
+- Store the exact leaf hash list used by the anchor so inclusion proofs remain
+  stable after the window closes.
 - Optionally publish the root to Bitcoin, Ethereum, or another low-cost public
   anchor.
 - Anchoring proves that a batch existed by a time. It is not required for
   day-to-day registry operation.
+
+The v1 anchoring endpoints are:
+
+- `POST /v1/did/anchors`
+- `GET /v1/did/anchors/{anchor_id}`
+- `GET /v1/did/anchors/{anchor_id}/proof/{receipt_id}`
 
 ## Security guarantees
 

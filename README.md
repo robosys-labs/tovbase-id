@@ -27,6 +27,7 @@ docs/
   BANK_ATTESTATION_WORKFLOW.md   # signed bank attestation and revocation flow
   ACTION_ATTESTATION_PROVIDER_WORKFLOW.md # camera/liveness provider signature flow
   SIGNED_ACTION_PERFORMANCE.md   # signed-action timing benchmark
+  ANCHORING_WORKFLOW.md          # Merkle root windows and proof generation
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
@@ -101,6 +102,9 @@ pip install -e ".[dev,postgres]"
 - `POST /v1/did/actions/challenge`
 - `POST /v1/did/actions/submit`
 - `GET /v1/did/actions/{action_id}`
+- `POST /v1/did/anchors`
+- `GET /v1/did/anchors/{anchor_id}`
+- `GET /v1/did/anchors/{anchor_id}/proof/{receipt_id}`
 - `GET /v1/did/health`
 
 ## Status

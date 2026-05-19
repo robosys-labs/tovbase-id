@@ -340,3 +340,42 @@ class DidHealthResponse(BaseModel):
     signing_key_id: str
     latest_receipt_at: datetime | None = None
     replication: dict[str, Any] = Field(default_factory=dict)
+
+
+class AnchorCreateRequest(StrictModel):
+    window_start: datetime
+    window_end: datetime
+    anchor_network: str | None = Field(default=None, max_length=32)
+    anchor_txid: str | None = None
+
+    @model_validator(mode="after")
+    def validate_window(self) -> AnchorCreateRequest:
+        if self.window_end <= self.window_start:
+            raise ValueError("window_end must be after window_start")
+        return self
+
+
+class AnchorResponse(BaseModel):
+    anchor_id: str
+    window_start: datetime
+    window_end: datetime
+    merkle_root: str
+    hash_count: int
+    anchor_network: str | None = None
+    anchor_txid: str | None = None
+    created_at: datetime
+
+
+class MerkleProofStep(BaseModel):
+    position: Literal["left", "right"]
+    hash: str
+
+
+class AnchorProofResponse(BaseModel):
+    anchor_id: str
+    receipt_id: str
+    payload_hash: str
+    merkle_root: str
+    leaf_index: int
+    proof: list[MerkleProofStep]
+    verified: bool

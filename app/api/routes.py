@@ -11,6 +11,9 @@ from app.schemas import (
     ActionResponse,
     ActionSubmitRequest,
     ActionSubmitResponse,
+    AnchorCreateRequest,
+    AnchorProofResponse,
+    AnchorResponse,
     BankAttestationAuditResponse,
     BankAttestationRevokeRequest,
     DidAttestRequest,
@@ -24,7 +27,7 @@ from app.schemas import (
     RegistryKeyResponse,
     normalize_hash,
 )
-from app.services import registry
+from app.services import anchors, registry
 from app.services.registry import RegistryError
 
 router = APIRouter(prefix="/v1/did", tags=["did-registry"])
@@ -108,6 +111,21 @@ def submit_action(request: ActionSubmitRequest, db: DBSession) -> ActionSubmitRe
 @router.get("/actions/{action_id}", response_model=ActionResponse)
 def get_action(action_id: str, db: DBSession) -> ActionResponse:
     return _service(lambda: registry.get_action(db, action_id))
+
+
+@router.post("/anchors", response_model=AnchorResponse)
+def create_anchor(request: AnchorCreateRequest, db: DBSession) -> AnchorResponse:
+    return _service(lambda: anchors.create_anchor(db, request))
+
+
+@router.get("/anchors/{anchor_id}", response_model=AnchorResponse)
+def get_anchor(anchor_id: str, db: DBSession) -> AnchorResponse:
+    return _service(lambda: anchors.get_anchor(db, anchor_id))
+
+
+@router.get("/anchors/{anchor_id}/proof/{receipt_id}", response_model=AnchorProofResponse)
+def get_anchor_proof(anchor_id: str, receipt_id: str, db: DBSession) -> AnchorProofResponse:
+    return _service(lambda: anchors.get_anchor_proof(db, anchor_id=anchor_id, receipt_id=receipt_id))
 
 
 @router.get("/{did}", response_model=DidResolveResponse)
