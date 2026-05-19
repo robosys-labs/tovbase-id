@@ -27,6 +27,13 @@ docs/
 web/
   app/
     page.tsx                     # id.tovbase.com landing page
+app/
+  api/routes.py                  # FastAPI routes under /v1/did
+  models.py                      # SQLAlchemy registry tables
+  schemas.py                     # Pydantic request/response contracts
+  services/                      # crypto and registry workflows
+tests/
+  test_registry.py               # registry-core acceptance tests
 ```
 
 ## Product surface
@@ -45,8 +52,31 @@ pnpm install
 pnpm dev
 ```
 
+For local backend development:
+
+```bash
+cp .env.example .env
+pip install -e ".[dev]"
+uvicorn app.main:app --reload --port 8001
+python -m pytest tests -q
+```
+
+## Implemented registry surface
+
+- `POST /v1/did/register`
+- `GET /v1/did/{did}`
+- `GET /v1/did/hash/{hash_id}`
+- `POST /v1/did/receipt/verify`
+- `POST /v1/did/attest`
+- `POST /v1/did/actions/challenge`
+- `POST /v1/did/actions/submit`
+- `GET /v1/did/actions/{action_id}`
+- `GET /v1/did/health`
+
 ## Status
 
-This repository is in foundation mode. The architecture, PRD, and product page
-are present. Backend registry implementation is tracked through GitHub
-milestones and issues in this repository.
+This repository has moved from foundation into Milestone 1 implementation. The
+first registry-core backend is present with portable SQLite/PostgreSQL models,
+strict no-PII request validation, deterministic DID derivation, signed
+registration receipts, bank attestations, and signed document/media action
+workflows.

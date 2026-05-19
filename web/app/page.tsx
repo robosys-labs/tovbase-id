@@ -140,7 +140,7 @@ export default function TovbaseIdPage() {
                 Start a bank pilot
               </a>
               <a
-                href="https://github.com/robosys-labs/tovbase/blob/main/docs/DID_REGISTRY_ARCHITECTURE.md"
+                href="https://github.com/robosys-labs/tovbase-id/blob/main/docs/DID_REGISTRY_ARCHITECTURE.md"
                 className="inline-flex h-11 items-center justify-center border border-[#9ca3af] bg-white/90 px-5 text-sm font-semibold text-[#111827] transition-colors hover:bg-white"
               >
                 Read the architecture

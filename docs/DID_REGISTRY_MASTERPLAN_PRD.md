@@ -304,14 +304,15 @@ investors.
 - Finalize architecture research and PRD.
 - Launch `id.tovbase.com` landing page.
 - Prepare GitHub milestones/issues.
-- Normalize current schema drift around `ExternalCredential` and
-  `InteractionEdge` before backend implementation begins.
+- Keep DID implementation isolated in this standalone repo so trust-scoring
+  backend schema drift cannot block registry delivery.
 
 Exit criteria:
 
 - Partner can read the architecture and understand failure modes.
 - Landing page exists and routes correctly from `id.tovbase.com`.
 - GitHub backlog is actionable.
+- Complete for the current standalone repo baseline.
 
 ### Milestone 1: Registry core
 
@@ -330,6 +331,7 @@ Exit criteria:
 - Registration and lookup work without Redis, Qdrant, NATS, or blockchain.
 - Passkey-only document/media signing path works against hashes and completes
   without liveness step-up.
+- Current status: initial M1 slice implemented with 11 registry-core tests.
 
 ### Milestone 2: Bank mirror pilot
 

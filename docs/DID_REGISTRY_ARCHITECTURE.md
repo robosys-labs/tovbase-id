@@ -30,10 +30,11 @@ that already fit Tovbase's current Python/FastAPI/PostgreSQL deployment.
 | Bank-to-node RPC | REST first, gRPC optional for bank mirrors | REST keeps v1 integration simple. gRPC/protobuf is reserved for high-throughput mirror streams and strongly typed bank SDKs. | [gRPC introduction](https://grpc.io/docs/what-is-grpc/introduction/) |
 | Landing/edge delivery | Static Next page or Cloudflare Worker custom domain | `id.tovbase.com` can run as a static product surface with API calls proxied to the core backend. | [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) |
 
-Decision: v1 should stay as a FastAPI module inside the existing backend. A
-separate Rust/Go registry microservice is only justified after measured Python
-CPU or memory pressure, because the registry's hot path is mostly validation,
-hash normalization, indexed PostgreSQL lookup, and signature verification.
+Decision: v1 ships as a small FastAPI backend in this dedicated `tovbase-id`
+repository. A separate Rust/Go registry microservice is only justified after
+measured Python CPU or memory pressure, because the registry's hot path is
+mostly validation, hash normalization, indexed PostgreSQL lookup, and signature
+verification.
 
 ## Efficient target architecture
 
@@ -885,7 +886,7 @@ link a person to a bank customer record.
 
 ## Repo implementation fit
 
-A future backend implementation should follow current Tovbase conventions:
+The backend implementation follows the lightweight Tovbase conventions:
 
 - Models live in `app/models.py`.
 - Request/response schemas live in `app/schemas.py`.
@@ -893,18 +894,13 @@ A future backend implementation should follow current Tovbase conventions:
 - Config values live in `app/config.py`, including `did_node_id`,
   `did_signing_key_id`, receipt key paths or KMS identifiers, and accepted bank
   IDs.
-- Migrations should be idempotent, matching the current `scripts/migrate_v12.py`
-  deployment pattern.
-- Tests should sit in a dedicated `tests/test_did_registry.py`.
+- Tests sit in a dedicated `tests/test_registry.py`.
 - The implementation must use SQLAlchemy `JSON`, not PostgreSQL-only `JSONB`,
   to preserve SQLite development compatibility.
 
-Implementation-readiness note: the current graph/credential layer is
-mid-transition. `app/services/credentials.py`, `app/services/graph_trust.py`,
-and related tests reference `ExternalCredential` and `InteractionEdge`, but
-those model classes are not present in the active `app/models.py`. Before
-adding DID registry code, normalize that schema drift or isolate DID tests so
-they do not depend on the incomplete graph/credential imports.
+Implementation-readiness note: this code is now isolated from the main Tovbase
+trust-scoring backend, so graph/credential schema drift in that repo does not
+block DID registry development.
 
 ## Future implementation acceptance criteria
 
