@@ -195,6 +195,9 @@ registered and attested without Tovbase storing the underlying identity data.
   the provider responds in under 20 seconds.
 - Target steady API worker memory under 256 MB for registry-only traffic.
 - Add structured logs without PII.
+- Current status: `scripts/benchmark_action_flow.py` proves the local backend
+  path for instant and camera/liveness signed actions is below the timing
+  targets.
 
 ### P2: L3 event plane
 

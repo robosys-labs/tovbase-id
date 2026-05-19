@@ -152,6 +152,9 @@ Camera/liveness media remains with the bank or liveness provider. Tovbase stores
 only evidence hashes and signed result metadata. Provider signature requirements
 are documented in `docs/ACTION_ATTESTATION_PROVIDER_WORKFLOW.md`.
 
+Backend timing can be checked with `scripts/benchmark_action_flow.py`; see
+`docs/SIGNED_ACTION_PERFORMANCE.md`.
+
 ## 7. Mirror readiness
 
 The pilot read mirror uses PostgreSQL logical replication over the registry

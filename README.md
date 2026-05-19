@@ -26,6 +26,7 @@ docs/
   BANK_MIRROR_RUNBOOK.md         # PostgreSQL read-mirror setup
   BANK_ATTESTATION_WORKFLOW.md   # signed bank attestation and revocation flow
   ACTION_ATTESTATION_PROVIDER_WORKFLOW.md # camera/liveness provider signature flow
+  SIGNED_ACTION_PERFORMANCE.md   # signed-action timing benchmark
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
@@ -77,6 +78,7 @@ python scripts/configure_publication.py --print-sql
 uvicorn app.main:app --reload --port 8001
 python -m pytest tests -q
 node sdk/browser/test-sdk.mjs
+python scripts/benchmark_action_flow.py --iterations 2 --provider-latency-seconds 0
 ```
 
 For PostgreSQL mirror/publication work, install the optional driver:
