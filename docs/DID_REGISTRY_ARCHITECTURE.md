@@ -843,6 +843,10 @@ Response:
   `identity_hashes`, `registry_events`, `did_documents`, `registration_receipts`,
   `bank_attestations`, `signed_actions`, `action_attestations`, and
   `registry_anchors`.
+- `scripts/configure_publication.py` renders or applies the primary publication
+  SQL.
+- `scripts/render_subscription_sql.py` renders bank-side `CREATE SUBSCRIPTION`
+  SQL with password placeholders.
 - Each bank runs a read-only mirror node in its own environment.
 - Bank systems query local mirrors for low-latency verification and operational
   continuity.

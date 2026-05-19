@@ -150,8 +150,9 @@ only evidence hashes and signed result metadata.
 ## 7. Mirror readiness
 
 The pilot read mirror uses PostgreSQL logical replication over the registry
-tables. Until the mirror scripts land, banks can validate the application-level
-contract with:
+tables. The operational runbook is `docs/BANK_MIRROR_RUNBOOK.md`.
+
+Banks can validate the application-level contract with:
 
 ```text
 GET /v1/did/health
@@ -159,6 +160,3 @@ GET /v1/did/{did}
 GET /v1/did/hash/{hash_id}
 POST /v1/did/receipt/verify
 ```
-
-The next implementation slice adds publication setup, replication-lag reporting,
-and a bank mirror runbook.

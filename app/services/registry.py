@@ -44,6 +44,7 @@ from app.services.crypto import (
     utc_now,
     verify_detached_signature,
 )
+from app.services.replication import replication_status
 
 
 class RegistryError(Exception):
@@ -694,5 +695,5 @@ def health(db: Session) -> DidHealthResponse:
         node_id=settings.did_node_id,
         signing_key_id=settings.did_signing_key_id,
         latest_receipt_at=latest_receipt_at,
-        replication={"publication": "did_registry_publication", "mode": "not_configured"},
+        replication=replication_status(db),
     )

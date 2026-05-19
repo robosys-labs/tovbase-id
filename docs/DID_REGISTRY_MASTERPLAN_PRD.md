@@ -138,6 +138,8 @@ registered and attested without Tovbase storing the underlying identity data.
 - Provide a mirror setup guide for a bank read replica.
 - Expose `/v1/did/health` with node id, key id, registry table status, and
   replication metadata when available.
+- Current status: publication/subscription SQL tooling, health metadata, and
+  `docs/BANK_MIRROR_RUNBOOK.md` are present for pilot review.
 
 ### P0: Product surface
 
