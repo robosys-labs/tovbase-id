@@ -165,6 +165,17 @@ def test_receipt_verification_success_and_failure(client: TestClient, user_key) 
     assert invalid_response.json()["valid"] is False
 
 
+def test_current_registry_key_endpoint(client: TestClient) -> None:
+    response = client.get("/v1/did/keys/current")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["key_id"]
+    assert body["signature_algorithm"] == "ed25519"
+    assert body["public_key_jwk"]["kty"] == "OKP"
+    assert body["public_key_jwk"]["crv"] == "Ed25519"
+
+
 def test_attestation_upsert(client: TestClient, user_key) -> None:
     registered = register_identity(client, user_key)
     response = client.post(

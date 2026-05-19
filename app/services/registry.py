@@ -33,6 +33,7 @@ from app.schemas import (
     ReceiptSummary,
     ReceiptVerifyRequest,
     ReceiptVerifyResponse,
+    RegistryKeyResponse,
 )
 from app.services.crypto import (
     b64url_encode,
@@ -424,6 +425,15 @@ def verify_receipt(request: ReceiptVerifyRequest) -> ReceiptVerifyResponse:
         valid=registry_signer.verify_payload(request.payload, request.signature, request.key_id),
         payload_hash=payload_hash,
         verified_at=utc_now(),
+    )
+
+
+def current_registry_key() -> RegistryKeyResponse:
+    return RegistryKeyResponse(
+        node_id=registry_signer.node_id,
+        key_id=registry_signer.key_id,
+        signature_algorithm=registry_signer.signature_algorithm,
+        public_key_jwk=registry_signer.public_key_jwk,
     )
 
 

@@ -22,8 +22,17 @@ scoring codebase. It is designed around:
 docs/
   DID_REGISTRY_ARCHITECTURE.md   # technical architecture
   DID_REGISTRY_MASTERPLAN_PRD.md # roadmap and product requirements
+  BANK_INTEGRATION_GUIDE.md      # pilot-bank integration guide
+  KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
+sdk/
+  browser/                       # dependency-free browser hashing reference
+schemas/
+  batch_registration.schema.json # server-to-server batch migration format
+  kyc_ng_v1.schema.json          # local canonical identity payload schema
+examples/
+  batch_registration.json        # sample batch payload
 web/
   app/
     page.tsx                     # id.tovbase.com landing page
@@ -57,8 +66,11 @@ For local backend development:
 ```bash
 cp .env.example .env
 pip install -e ".[dev]"
+python scripts/generate_signing_key.py --node-id tovbase-id-dev-1 --key-id tovbase-registry-dev-1
+python scripts/migrate.py
 uvicorn app.main:app --reload --port 8001
 python -m pytest tests -q
+node sdk/browser/test-sdk.mjs
 ```
 
 ## Implemented registry surface
@@ -67,6 +79,7 @@ python -m pytest tests -q
 - `GET /v1/did/{did}`
 - `GET /v1/did/hash/{hash_id}`
 - `POST /v1/did/receipt/verify`
+- `GET /v1/did/keys/current`
 - `POST /v1/did/attest`
 - `POST /v1/did/actions/challenge`
 - `POST /v1/did/actions/submit`

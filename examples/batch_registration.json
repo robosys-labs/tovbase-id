@@ -1,0 +1,36 @@
+{
+  "batch_id": "batch_bank-a_2026-05-19_001",
+  "bank_id": "bank-a",
+  "schema_version": "batch-registration-v1",
+  "created_at": "2026-05-19T21:45:00Z",
+  "entries": [
+    {
+      "hash_id": "830f23fcf284282ef2e5bbdf497a7f9dcc71c6eb14f1223daabe73cb3bfbb15f",
+      "hash_algorithm": "sha256",
+      "hash_encoding": "hex",
+      "sdk_version": "tovbase-id-browser/0.1.0",
+      "webauthn_credential_id": "cred_bank_a_user_001",
+      "webauthn_public_key": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "6xIdyBRkdl4QTH-2PwsX0h0mEDHXsVnES5SYE0c_WXE"
+      },
+      "device_pubkey_fingerprint": "7ee3945a99249524fc7ebdd902ea0a32ff2d8e7f6bc54ac263ed29c0a0e70d17",
+      "bank_attestation": {
+        "attestation_type": "kyc_hash_seen",
+        "attestation_hash": "27646cd9dce89862ed7828da14d7b9aa9ac8f530fbb7a7b85f66bf66f9230bd9",
+        "issued_at": "2026-05-19T21:45:00Z",
+        "expires_at": null,
+        "key_id": "bank-a-signing-2026-01",
+        "signature": "bank-signature-placeholder",
+        "payload": {
+          "schema_version": "kyc-attestation-v1"
+        }
+      },
+      "metadata": {
+        "schema_version": "kyc-ng-v1",
+        "client": "tovbase-id-browser/0.1.0"
+      }
+    }
+  ]
+}

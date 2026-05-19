@@ -11,4 +11,8 @@ __pycache__/
 !.env.example
 *.log
 coverage/
+data/
+*.db
+*.sqlite
+*.sqlite3
 .DS_Store

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://id.tovbase.com/schemas/kyc_ng_v1.schema.json",
+  "title": "Tovbase ID KYC Canonical Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fields"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "kyc-ng-v1"
+    },
+    "fields": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "account_number": {
+          "type": "string",
+          "pattern": "^[0-9]{6,20}$"
+        },
+        "bank_code": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{2,16}$"
+        },
+        "bvn": {
+          "type": "string",
+          "pattern": "^[0-9]{11}$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "nin": {
+          "type": "string",
+          "pattern": "^[0-9]{11}$"
+        },
+        "passport_number": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{6,12}$"
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^\\+?[0-9]{7,15}$"
+        }
+      }
+    }
+  }
+}

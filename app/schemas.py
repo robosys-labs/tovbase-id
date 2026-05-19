@@ -152,6 +152,13 @@ class ReceiptVerifyResponse(BaseModel):
     verified_at: datetime
 
 
+class RegistryKeyResponse(BaseModel):
+    node_id: str
+    key_id: str
+    signature_algorithm: str
+    public_key_jwk: dict[str, Any]
+
+
 class DidAttestRequest(StrictModel):
     hash_id: str
     bank_id: str = Field(min_length=1)

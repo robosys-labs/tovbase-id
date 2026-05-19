@@ -19,6 +19,7 @@ from app.schemas import (
     DidResolveResponse,
     ReceiptVerifyRequest,
     ReceiptVerifyResponse,
+    RegistryKeyResponse,
     normalize_hash,
 )
 from app.services import registry
@@ -58,6 +59,11 @@ def resolve_by_hash(hash_id: str, db: DBSession) -> DidResolveResponse:
 @router.post("/receipt/verify", response_model=ReceiptVerifyResponse)
 def verify_receipt(request: ReceiptVerifyRequest) -> ReceiptVerifyResponse:
     return registry.verify_receipt(request)
+
+
+@router.get("/keys/current", response_model=RegistryKeyResponse)
+def current_registry_key() -> RegistryKeyResponse:
+    return registry.current_registry_key()
 
 
 @router.post("/attest", response_model=DidAttestResponse)

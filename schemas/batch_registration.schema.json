@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://id.tovbase.com/schemas/batch_registration.schema.json",
+  "title": "Tovbase ID Batch Registration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["batch_id", "bank_id", "schema_version", "created_at", "entries"],
+  "properties": {
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bank_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "batch-registration-v1"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/registration_entry"
+      }
+    }
+  },
+  "$defs": {
+    "sha256_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "registration_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hash_id",
+        "hash_algorithm",
+        "hash_encoding",
+        "sdk_version",
+        "webauthn_credential_id",
+        "webauthn_public_key",
+        "device_pubkey_fingerprint"
+      ],
+      "properties": {
+        "hash_id": {
+          "$ref": "#/$defs/sha256_hex"
+        },
+        "hash_algorithm": {
+          "const": "sha256"
+        },
+        "hash_encoding": {
+          "const": "hex"
+        },
+        "sdk_version": {
+          "type": "string"
+        },
+        "webauthn_credential_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "webauthn_public_key": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "device_pubkey_fingerprint": {
+          "$ref": "#/$defs/sha256_hex"
+        },
+        "bank_attestation": {
+          "$ref": "#/$defs/bank_attestation"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "bank_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attestation_type", "attestation_hash", "issued_at", "key_id", "signature", "payload"],
+      "properties": {
+        "attestation_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "attestation_hash": {
+          "$ref": "#/$defs/sha256_hex"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

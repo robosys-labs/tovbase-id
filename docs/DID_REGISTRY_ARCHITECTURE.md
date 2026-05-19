@@ -206,6 +206,9 @@ Rules:
 - Multiple bank attestations may point to the same `hash_id`, but no bank needs
   to expose its internal customer mapping.
 
+The first canonicalization contract is `docs/KYC_CANONICALIZATION_V1.md`, with
+machine-readable shape in `schemas/kyc_ng_v1.schema.json`.
+
 ### Lookup and proof flow
 
 1. A relying party receives a DID, hash id, or signed user assertion.
@@ -686,6 +689,28 @@ Response:
   "verified_at": "2026-05-19T12:01:00Z"
 }
 ```
+
+### `GET /v1/did/keys/current`
+
+Returns the active registry receipt-verification public key.
+
+Response:
+
+```json
+{
+  "node_id": "tovbase-primary-ng-1",
+  "key_id": "tovbase-registry-2026-01",
+  "signature_algorithm": "ed25519",
+  "public_key_jwk": {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": "base64url public key"
+  }
+}
+```
+
+Banks should cache the public key by `key_id` and keep old public keys for
+receipt verification after rotation.
 
 ### `POST /v1/did/attest`
 

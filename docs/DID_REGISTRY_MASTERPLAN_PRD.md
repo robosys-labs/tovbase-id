@@ -55,6 +55,8 @@ registered and attested without Tovbase storing the underlying identity data.
 - Support a single cryptographic identity derived from bank-approved KYC inputs
   such as passport, BVN, NIN, and other data, while keeping raw values and salts
   outside Tovbase.
+- Current status: `kyc-ng-v1` is documented with browser SDK normalization and
+  a local canonical payload JSON schema.
 - Support official user actions where a user signs a document/media hash,
   mandate, or consent envelope with their passkey and a bank-issued handshake
   credential reference.
@@ -158,6 +160,8 @@ registered and attested without Tovbase storing the underlying identity data.
   - native passkey hooks,
   - bank app salt custody.
 - Server-to-server batch format for migration of existing bank customers.
+- Current status: dependency-free browser reference and batch JSON schema are
+  present for pilot review.
 
 ### P1: Bank attestation workflow
 
