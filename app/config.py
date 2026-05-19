@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     nats_subject_prefix: str = "tovbase.id.registry"
     action_challenge_ttl_seconds: int = 300
     access_log_enabled: bool = True
+    api_memory_target_mb: int = 256
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

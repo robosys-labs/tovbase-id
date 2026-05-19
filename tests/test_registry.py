@@ -600,3 +600,6 @@ def test_health_reports_registry_ready(client: TestClient) -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["registry_tables"] is True
+    assert body["runtime"]["implementation"] == "python-fastapi-reference"
+    assert body["runtime"]["memory_target_mb"] == 256
+    assert body["runtime"]["migration_candidate"] == "go-registry-core"

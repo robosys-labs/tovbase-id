@@ -387,6 +387,7 @@ class DidHealthResponse(BaseModel):
     signing_key_id: str
     latest_receipt_at: datetime | None = None
     replication: dict[str, Any] = Field(default_factory=dict)
+    runtime: dict[str, Any] = Field(default_factory=dict)
 
 
 class AnchorCreateRequest(StrictModel):

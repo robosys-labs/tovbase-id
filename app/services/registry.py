@@ -53,6 +53,7 @@ from app.services.crypto import (
 )
 from app.services.provider_keys import verify_action_attestation
 from app.services.replication import replication_status
+from app.services.runtime import current_runtime_status
 
 
 class RegistryError(Exception):
@@ -884,4 +885,5 @@ def health(db: Session) -> DidHealthResponse:
         signing_key_id=settings.did_signing_key_id,
         latest_receipt_at=latest_receipt_at,
         replication=replication_status(db),
+        runtime=current_runtime_status(),
     )

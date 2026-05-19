@@ -31,10 +31,10 @@ that already fit Tovbase's current Python/FastAPI/PostgreSQL deployment.
 | Landing/edge delivery | Static Next page or Cloudflare Worker custom domain | `id.tovbase.com` can run as a static product surface with API calls proxied to the core backend. | [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) |
 
 Decision: v1 ships as a small FastAPI backend in this dedicated `tovbase-id`
-repository. A separate Rust/Go registry microservice is only justified after
-measured Python CPU or memory pressure, because the registry's hot path is
-mostly validation, hash normalization, indexed PostgreSQL lookup, and signature
-verification.
+repository so the bank-facing protocol can stabilize quickly. Go is the likely
+production-core migration candidate if measured CPU, memory, packaging, or bank
+node distribution requirements justify a rewrite after the pilot. The runtime
+decision and migration gates are tracked in `docs/RUNTIME_STRATEGY.md`.
 
 ## Efficient target architecture
 
@@ -909,6 +909,13 @@ Response:
   "replication": {
     "publication": "did_registry_publication",
     "last_lsn": "0/16B6A50"
+  },
+  "runtime": {
+    "implementation": "python-fastapi-reference",
+    "rss_mb": 82.4,
+    "memory_target_mb": 256,
+    "memory_within_target": true,
+    "migration_candidate": "go-registry-core"
   }
 }
 ```

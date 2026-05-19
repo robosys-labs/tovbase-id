@@ -79,6 +79,9 @@ registered and attested without Tovbase storing the underlying identity data.
 - Tovbase does not run a public blockchain or require public-chain anchoring.
 - Tovbase does not require a new Rust/Go microservice until profiling proves
   Python/FastAPI is the bottleneck.
+- Current runtime strategy: Python/FastAPI is the pilot/reference
+  implementation; Go is the preferred production-core migration candidate if
+  measured CPU, memory, packaging, or bank-node distribution gates justify it.
 - Tovbase does not perform full WebAuthn ceremony verification in the first
   registry-core release.
 
@@ -137,7 +140,7 @@ registered and attested without Tovbase storing the underlying identity data.
 - Keep the schema portable enough for SQLite-backed unit tests.
 - Provide a mirror setup guide for a bank read replica.
 - Expose `/v1/did/health` with node id, key id, registry table status, and
-  replication metadata when available.
+  replication/runtime metadata when available.
 - Current status: publication/subscription SQL tooling, health metadata, and
   `docs/BANK_MIRROR_RUNBOOK.md` are present for pilot review.
 
@@ -194,6 +197,7 @@ registered and attested without Tovbase storing the underlying identity data.
 - Target passkey plus camera/liveness action completion under 30 seconds when
   the provider responds in under 20 seconds.
 - Target steady API worker memory under 256 MB for registry-only traffic.
+- Expose runtime RSS in health so Python memory cost is visible during pilots.
 - Add structured logs without PII.
 - Current status: PII-safe structured access logs are implemented with
   route-template paths, request ids, status codes, and durations only.
