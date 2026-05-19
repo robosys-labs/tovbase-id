@@ -29,6 +29,9 @@ from app.schemas import (
     BankAttestationRevokeRequest,
     DidAttestRequest,
     DidAttestResponse,
+    DidBatchRegisterRequest,
+    DidBatchRegisterResponse,
+    DidBatchRegisterResult,
     DidHealthResponse,
     DidRegisterRequest,
     DidRegisterResponse,
@@ -428,6 +431,56 @@ def register_identity(db: Session, request: DidRegisterRequest) -> DidRegisterRe
         status="registered",
         registered_at=now,
         receipt=_receipt_summary(receipt),
+    )
+
+
+def register_batch(db: Session, request: DidBatchRegisterRequest) -> DidBatchRegisterResponse:
+    results: list[DidBatchRegisterResult] = []
+    for index, entry in enumerate(request.entries):
+        registration = DidRegisterRequest(**entry.model_dump(), bank_id=request.bank_id)
+        try:
+            response = register_identity(db, registration)
+        except RegistryError as exc:
+            db.rollback()
+            results.append(
+                DidBatchRegisterResult(
+                    index=index,
+                    hash_id=entry.hash_id,
+                    status="failed",
+                    error=str(exc),
+                    status_code=exc.status_code,
+                )
+            )
+            continue
+        results.append(
+            DidBatchRegisterResult(
+                index=index,
+                hash_id=response.hash_id,
+                did=response.did,
+                status=response.status,
+                receipt_id=response.receipt.receipt_id,
+            )
+        )
+
+    registered_count = sum(1 for result in results if result.status == "registered")
+    existing_count = sum(1 for result in results if result.status == "exists")
+    failed_count = sum(1 for result in results if result.status == "failed")
+    if failed_count == 0:
+        status = "completed"
+    elif failed_count == len(results):
+        status = "failed"
+    else:
+        status = "partial"
+    return DidBatchRegisterResponse(
+        batch_id=request.batch_id,
+        bank_id=request.bank_id,
+        schema_version=request.schema_version,
+        status=status,
+        received_count=len(request.entries),
+        registered_count=registered_count,
+        existing_count=existing_count,
+        failed_count=failed_count,
+        results=results,
     )
 
 

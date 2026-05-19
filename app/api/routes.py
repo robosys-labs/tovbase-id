@@ -19,6 +19,8 @@ from app.schemas import (
     BankAttestationRevokeRequest,
     DidAttestRequest,
     DidAttestResponse,
+    DidBatchRegisterRequest,
+    DidBatchRegisterResponse,
     DidHealthResponse,
     DidRegisterRequest,
     DidRegisterResponse,
@@ -50,6 +52,12 @@ def _service(call: Callable[[], T]) -> T:
 def register(request: DidRegisterRequest, principal: BankAuth, db: DBSession) -> DidRegisterResponse:
     request.bank_id = assert_bank_scope(principal, request.bank_id)
     return _service(lambda: registry.register_identity(db, request))
+
+
+@router.post("/register/batch", response_model=DidBatchRegisterResponse)
+def register_batch(request: DidBatchRegisterRequest, principal: BankAuth, db: DBSession) -> DidBatchRegisterResponse:
+    assert_bank_scope(principal, request.bank_id)
+    return registry.register_batch(db, request)
 
 
 @router.get("/health", response_model=DidHealthResponse)

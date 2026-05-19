@@ -111,6 +111,7 @@ and `ADMIN_API_KEYS_JSON`; see `docs/API_AUTHENTICATION.md`.
 ## Implemented registry surface
 
 - `POST /v1/did/register` (bank API key)
+- `POST /v1/did/register/batch` (bank API key)
 - `GET /v1/did/{did}`
 - `GET /v1/did/hash/{hash_id}`
 - `POST /v1/did/receipt/verify`

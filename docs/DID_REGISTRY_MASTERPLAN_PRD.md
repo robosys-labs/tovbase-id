@@ -162,8 +162,8 @@ registered and attested without Tovbase storing the underlying identity data.
   - native passkey hooks,
   - bank app salt custody.
 - Server-to-server batch format for migration of existing bank customers.
-- Current status: dependency-free browser reference and batch JSON schema are
-  present for pilot review.
+- Current status: dependency-free browser reference, batch JSON schema, and
+  bank-authenticated batch registration endpoint are present for pilot review.
 
 ### P1: Bank attestation workflow
 
@@ -385,6 +385,8 @@ Exit criteria:
 
 - A bank pilot can register a user through SDK hashing and attach a signed
   attestation.
+- A bank can migrate precomputed existing-customer hashes through the
+  bank-authenticated batch registration endpoint with per-entry retry results.
 - A bank can request an `aal3` camera/liveness attestation for a high-risk
   signed action and receive a provider-signed result hash.
 - Audit export verifies without database trust.

@@ -149,9 +149,20 @@ examples/batch_registration.json
 ```
 
 Each batch entry is the same no-PII request body accepted by
-`POST /v1/did/register`, wrapped in a bank-scoped batch envelope. A batch
-processor can stream each entry through the normal registration endpoint or a
-future bulk endpoint.
+`POST /v1/did/register`, wrapped in a bank-scoped batch envelope.
+
+Submit a batch with:
+
+```text
+POST /v1/did/register/batch
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
+```
+
+The endpoint applies the authenticated envelope `bank_id` to every entry and
+processes entries independently through the normal registration path. Results
+include `registered`, `exists`, or `failed` per entry, so a migration can safely
+retry the same batch without duplicating identities.
 
 ## 7. Signed official actions
 

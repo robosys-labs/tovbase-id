@@ -118,6 +118,53 @@ class DidRegisterResponse(BaseModel):
     receipt: ReceiptSummary
 
 
+class DidBatchRegisterEntry(StrictModel):
+    hash_id: str
+    hash_algorithm: Literal["sha256"] = "sha256"
+    hash_encoding: Literal["hex"] = "hex"
+    sdk_version: str | None = Field(default=None, max_length=64)
+    webauthn_credential_id: str = Field(min_length=1)
+    webauthn_public_key: dict[str, Any]
+    device_pubkey_fingerprint: str
+    bank_attestation: BankAttestationInput | None = None
+    metadata: dict[str, Any] | None = None
+
+    @field_validator("hash_id", "device_pubkey_fingerprint")
+    @classmethod
+    def normalize_sha256_hex(cls, value: str) -> str:
+        return normalize_hash(value)
+
+
+class DidBatchRegisterRequest(StrictModel):
+    batch_id: str = Field(min_length=1, max_length=128)
+    bank_id: str = Field(min_length=1)
+    schema_version: Literal["batch-registration-v1"] = "batch-registration-v1"
+    created_at: datetime
+    entries: list[DidBatchRegisterEntry] = Field(min_length=1, max_length=500)
+
+
+class DidBatchRegisterResult(BaseModel):
+    index: int
+    hash_id: str
+    did: str | None = None
+    status: Literal["registered", "exists", "failed"]
+    receipt_id: str | None = None
+    error: str | None = None
+    status_code: int | None = None
+
+
+class DidBatchRegisterResponse(BaseModel):
+    batch_id: str
+    bank_id: str
+    schema_version: str
+    status: Literal["completed", "partial", "failed"]
+    received_count: int
+    registered_count: int
+    existing_count: int
+    failed_count: int
+    results: list[DidBatchRegisterResult]
+
+
 class AttestationSummary(BaseModel):
     attestation_id: str
     bank_id: str

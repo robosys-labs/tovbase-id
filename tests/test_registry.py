@@ -74,6 +74,16 @@ def register_payload(
     }
 
 
+def batch_entry(
+    user_key: tuple[ed25519.Ed25519PrivateKey, dict[str, str], str, str],
+    *,
+    hash_id: str | None = None,
+) -> dict:
+    entry = register_payload(user_key, hash_id=hash_id)
+    entry.pop("bank_id")
+    return entry
+
+
 def register_identity(client: TestClient, user_key: tuple[ed25519.Ed25519PrivateKey, dict[str, str], str, str]) -> dict:
     response = client.post("/v1/did/register", json=register_payload(user_key), headers=bank_headers())
     assert response.status_code == 200, response.text
@@ -146,6 +156,117 @@ def test_register_requires_bank_api_key(client: TestClient, user_key) -> None:
 
     assert response.status_code == 401
     assert "valid bank API key required" in response.json()["detail"]
+
+
+def test_batch_registration_registers_and_replays_idempotently(client: TestClient, user_key) -> None:
+    batch = {
+        "batch_id": "batch-test-001",
+        "bank_id": "bank-a",
+        "schema_version": "batch-registration-v1",
+        "created_at": datetime.now(UTC).isoformat(),
+        "entries": [
+            batch_entry(user_key, hash_id=sha256_hex("batch-user-1")),
+            batch_entry(user_key, hash_id=sha256_hex("batch-user-2")),
+        ],
+    }
+
+    response = client.post("/v1/did/register/batch", headers=bank_headers(), json=batch)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["received_count"] == 2
+    assert body["registered_count"] == 2
+    assert body["failed_count"] == 0
+    assert {result["status"] for result in body["results"]} == {"registered"}
+
+    replay_response = client.post("/v1/did/register/batch", headers=bank_headers(), json=batch)
+
+    assert replay_response.status_code == 200, replay_response.text
+    replay = replay_response.json()
+    assert replay["status"] == "completed"
+    assert replay["registered_count"] == 0
+    assert replay["existing_count"] == 2
+    assert {result["status"] for result in replay["results"]} == {"exists"}
+
+
+def test_batch_registration_reports_partial_failures(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    conflicting = batch_entry(user_key, hash_id=registered["hash_id"])
+    conflicting["device_pubkey_fingerprint"] = sha256_hex("batch-conflict-fingerprint")
+    batch = {
+        "batch_id": "batch-test-partial",
+        "bank_id": "bank-a",
+        "schema_version": "batch-registration-v1",
+        "created_at": datetime.now(UTC).isoformat(),
+        "entries": [
+            conflicting,
+            batch_entry(user_key, hash_id=sha256_hex("batch-user-success-after-conflict")),
+        ],
+    }
+
+    response = client.post("/v1/did/register/batch", headers=bank_headers(), json=batch)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "partial"
+    assert body["registered_count"] == 1
+    assert body["failed_count"] == 1
+    assert body["results"][0]["status"] == "failed"
+    assert body["results"][0]["status_code"] == 409
+    assert "different public-key fingerprint" in body["results"][0]["error"]
+    assert body["results"][1]["status"] == "registered"
+
+
+def test_batch_registration_requires_bank_api_key(client: TestClient, user_key) -> None:
+    response = client.post(
+        "/v1/did/register/batch",
+        json={
+            "batch_id": "batch-test-auth",
+            "bank_id": "bank-a",
+            "schema_version": "batch-registration-v1",
+            "created_at": datetime.now(UTC).isoformat(),
+            "entries": [batch_entry(user_key, hash_id=sha256_hex("batch-auth-user"))],
+        },
+    )
+
+    assert response.status_code == 401
+    assert "valid bank API key required" in response.json()["detail"]
+
+
+def test_batch_registration_bank_id_must_match_api_key(client: TestClient, user_key) -> None:
+    response = client.post(
+        "/v1/did/register/batch",
+        headers=bank_headers(bank_id="bank-a"),
+        json={
+            "batch_id": "batch-test-wrong-bank",
+            "bank_id": "bank-b",
+            "schema_version": "batch-registration-v1",
+            "created_at": datetime.now(UTC).isoformat(),
+            "entries": [batch_entry(user_key, hash_id=sha256_hex("batch-wrong-bank-user"))],
+        },
+    )
+
+    assert response.status_code == 403
+    assert "does not match request bank_id" in response.json()["detail"]
+
+
+def test_batch_registration_rejects_pii_like_fields(client: TestClient, user_key) -> None:
+    entry = batch_entry(user_key, hash_id=sha256_hex("batch-pii-user"))
+    entry["metadata"] = {"bvn": "22233344455"}
+    response = client.post(
+        "/v1/did/register/batch",
+        headers=bank_headers(),
+        json={
+            "batch_id": "batch-test-pii",
+            "bank_id": "bank-a",
+            "schema_version": "batch-registration-v1",
+            "created_at": datetime.now(UTC).isoformat(),
+            "entries": [entry],
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_receipt_verification_success_and_failure(client: TestClient, user_key) -> None:

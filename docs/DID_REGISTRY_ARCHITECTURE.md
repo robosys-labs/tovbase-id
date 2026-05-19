@@ -651,6 +651,48 @@ Behavior:
 - Return `409 Conflict` if `hash_id` already exists with conflicting WebAuthn
   metadata.
 
+### `POST /v1/did/register/batch`
+
+Registers a bank-scoped batch of precomputed identity hashes for server-to-server
+migration.
+
+Request:
+
+```json
+{
+  "batch_id": "batch_bank-a_2026-05-19_001",
+  "bank_id": "bank-a",
+  "schema_version": "batch-registration-v1",
+  "created_at": "2026-05-19T21:45:00Z",
+  "entries": [
+    {
+      "hash_id": "64 lowercase hex chars",
+      "hash_algorithm": "sha256",
+      "hash_encoding": "hex",
+      "sdk_version": "tovbase-id-browser/0.1.0",
+      "webauthn_credential_id": "base64url credential id",
+      "webauthn_public_key": {},
+      "device_pubkey_fingerprint": "64 lowercase hex chars",
+      "bank_attestation": null,
+      "metadata": {"schema_version": "kyc-ng-v1"}
+    }
+  ]
+}
+```
+
+Behavior:
+
+- Requires bank API authentication and `bank_id` must match
+  `X-Tovbase-Bank-Id`.
+- Entries cannot carry their own `bank_id`; the authenticated batch envelope is
+  authoritative.
+- Each entry is processed through the same single-registration path, so
+  no-PII validation, attestation signature checks, receipts, and idempotency are
+  identical to `POST /v1/did/register`.
+- The response includes per-entry `registered`, `exists`, or `failed` status.
+  This makes retrying large migrations safe without forcing transaction-wide
+  rollback for one bad legacy record.
+
 ### `GET /v1/did/{did}`
 
 Resolves a DID to its DID document, receipt summary, and active attestations.

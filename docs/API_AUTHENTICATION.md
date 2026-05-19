@@ -39,6 +39,7 @@ The request body `bank_id`, when present, must match `X-Tovbase-Bank-Id`.
 Bank-authenticated endpoints:
 
 - `POST /v1/did/register`
+- `POST /v1/did/register/batch`
 - `POST /v1/did/attest`
 - `POST /v1/did/attest/revoke`
 - `POST /v1/did/actions/challenge`
