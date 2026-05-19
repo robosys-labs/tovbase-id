@@ -27,6 +27,7 @@ docs/
   BANK_ATTESTATION_WORKFLOW.md   # signed bank attestation and revocation flow
   ACTION_ATTESTATION_PROVIDER_WORKFLOW.md # camera/liveness provider signature flow
   SIGNED_ACTION_PERFORMANCE.md   # signed-action timing benchmark
+  REGISTRY_CORE_PERFORMANCE.md   # registry-core timing benchmark
   ANCHORING_WORKFLOW.md          # Merkle root windows and proof generation
   API_AUTHENTICATION.md          # bank/admin API key contract
   NATS_EVENT_PLANE.md            # optional JetStream registry event publisher
@@ -83,6 +84,7 @@ python scripts/configure_publication.py --print-sql
 uvicorn app.main:app --reload --port 8001
 python -m pytest tests -q
 node sdk/browser/test-sdk.mjs
+python scripts/benchmark_registry_core.py --iterations 2
 python scripts/benchmark_action_flow.py --iterations 2 --provider-latency-seconds 0
 ```
 
