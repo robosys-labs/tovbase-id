@@ -2,6 +2,7 @@ import json
 import re
 
 from app.services.crypto import RegistrySigner
+from scripts.generate_bank_key import generate_bank_key_material
 from scripts.generate_signing_key import generate_key_material
 
 
@@ -40,3 +41,14 @@ def test_registry_signer_verifies_retired_keys() -> None:
 
     assert new_signer.verify_payload(payload, signature, "old-key") is True
     assert new_signer.verify_payload({**payload, "hash_id": "def"}, signature, "old-key") is False
+
+
+def test_generate_bank_key_outputs_trusted_key_record() -> None:
+    material = generate_bank_key_material("bank-a", "bank-a-signing-1")
+
+    assert material["bank_id"] == "bank-a"
+    assert material["key_id"] == "bank-a-signing-1"
+    assert re.fullmatch(r"[A-Za-z0-9_-]+", material["bank_private_key_b64"])
+    assert material["trusted_key_record"]["bank_id"] == "bank-a"
+    assert material["trusted_key_record"]["key_id"] == "bank-a-signing-1"
+    assert material["trusted_key_record"]["public_key_jwk"]["kty"] == "OKP"

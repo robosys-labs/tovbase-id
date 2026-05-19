@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, engine, init_db
 from app.main import app
+from tests.helpers import sign_bank_attestation_payload, sign_bank_revocation_payload
 
 
 def b64url(value: bytes) -> str:
@@ -49,8 +50,9 @@ def register_payload(
     hash_id: str | None = None,
 ) -> dict:
     _, jwk, credential_id, fingerprint = user_key
+    final_hash_id = hash_id or sha256_hex("sdk-local-canonical-identity")
     return {
-        "hash_id": hash_id or sha256_hex("sdk-local-canonical-identity"),
+        "hash_id": final_hash_id,
         "hash_algorithm": "sha256",
         "hash_encoding": "hex",
         "sdk_version": "tovbase-js/0.1.0",
@@ -58,14 +60,10 @@ def register_payload(
         "webauthn_public_key": jwk,
         "device_pubkey_fingerprint": fingerprint,
         "bank_id": "bank-a",
-        "bank_attestation": {
-            "attestation_type": "kyc_hash_seen",
-            "attestation_hash": sha256_hex("bank-a-evidence"),
-            "issued_at": datetime.now(UTC).isoformat(),
-            "key_id": "bank-a-signing-1",
-            "signature": b64url(b"bank-signature"),
-            "payload": {},
-        },
+        "bank_attestation": sign_bank_attestation_payload(
+            hash_id=final_hash_id,
+            attestation_hash=sha256_hex("bank-a-evidence"),
+        ),
         "metadata": {"schema_version": "kyc-ng-v1"},
     }
 
@@ -89,6 +87,7 @@ def test_register_and_resolve_by_did_and_hash(client: TestClient, user_key) -> N
     assert did_body["hash_id"] == registered["hash_id"]
     assert did_body["did_document"]["id"] == registered["did"]
     assert did_body["attestations"][0]["bank_id"] == "bank-a"
+    assert did_body["attestations"][0]["signature_verified"] is True
 
     hash_response = client.get(f"/v1/did/hash/{registered['hash_id']}")
     assert hash_response.status_code == 200
@@ -187,27 +186,66 @@ def test_registry_keys_endpoint(client: TestClient) -> None:
 
 def test_attestation_upsert(client: TestClient, user_key) -> None:
     registered = register_identity(client, user_key)
+    attestation_hash = sha256_hex("bank-a-account-evidence")
     response = client.post(
         "/v1/did/attest",
         json={
             "hash_id": registered["hash_id"],
-            "bank_id": "bank-b",
-            "attestation": {
-                "attestation_type": "kyc_hash_seen",
-                "attestation_hash": sha256_hex("bank-b-evidence"),
-                "issued_at": datetime.now(UTC).isoformat(),
-                "key_id": "bank-b-signing-1",
-                "signature": b64url(b"bank-b-signature"),
-                "payload": {},
-            },
+            "bank_id": "bank-a",
+            "attestation": sign_bank_attestation_payload(
+                hash_id=registered["hash_id"],
+                attestation_type="bank_account_seen",
+                attestation_hash=attestation_hash,
+            ),
         },
     )
 
     assert response.status_code == 200
-    assert response.json()["attestation"]["bank_id"] == "bank-b"
+    assert response.json()["attestation"]["bank_id"] == "bank-a"
+    assert response.json()["attestation"]["signature_verified"] is True
 
     resolved = client.get(f"/v1/did/{registered['did']}").json()
-    assert {att["bank_id"] for att in resolved["attestations"]} == {"bank-a", "bank-b"}
+    assert {att["attestation_type"] for att in resolved["attestations"]} == {"kyc_hash_seen", "bank_account_seen"}
+
+
+def test_invalid_bank_attestation_signature_is_rejected(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    attestation = sign_bank_attestation_payload(
+        hash_id=registered["hash_id"],
+        attestation_type="bank_account_seen",
+        attestation_hash=sha256_hex("bank-a-account-evidence"),
+    )
+    attestation["signature"] = b64url(b"invalid-signature")
+
+    response = client.post(
+        "/v1/did/attest",
+        json={"hash_id": registered["hash_id"], "bank_id": "bank-a", "attestation": attestation},
+    )
+
+    assert response.status_code == 400
+    assert "invalid_bank_signature" in response.json()["detail"]
+
+
+def test_attestation_revoke_and_audit_export(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    revoke_response = client.post(
+        "/v1/did/attest/revoke",
+        json=sign_bank_revocation_payload(hash_id=registered["hash_id"]),
+    )
+
+    assert revoke_response.status_code == 200
+    assert revoke_response.json()["attestation"]["revoked_at"] is not None
+
+    resolved = client.get(f"/v1/did/{registered['did']}").json()
+    assert resolved["attestations"] == []
+
+    audit_response = client.get(f"/v1/did/attest/{registered['hash_id']}/audit")
+    assert audit_response.status_code == 200
+    audit = audit_response.json()
+    assert audit["hash_id"] == registered["hash_id"]
+    assert audit["attestations"][0]["signature_verified"] is True
+    assert audit["attestations"][0]["revoked_at"] is not None
+    assert audit["attestations"][0]["signature"]
 
 
 def test_passkey_only_action_can_be_approved(client: TestClient, user_key) -> None:

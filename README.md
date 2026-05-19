@@ -24,6 +24,7 @@ docs/
   DID_REGISTRY_MASTERPLAN_PRD.md # roadmap and product requirements
   BANK_INTEGRATION_GUIDE.md      # pilot-bank integration guide
   BANK_MIRROR_RUNBOOK.md         # PostgreSQL read-mirror setup
+  BANK_ATTESTATION_WORKFLOW.md   # signed bank attestation and revocation flow
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
@@ -68,6 +69,7 @@ For local backend development:
 cp .env.example .env
 pip install -e ".[dev]"
 python scripts/generate_signing_key.py --node-id tovbase-id-dev-1 --key-id tovbase-registry-dev-1
+python scripts/generate_bank_key.py --bank-id bank-a --key-id bank-a-signing-1
 python scripts/migrate.py
 python scripts/configure_publication.py --print-sql
 uvicorn app.main:app --reload --port 8001
@@ -90,6 +92,8 @@ pip install -e ".[dev,postgres]"
 - `GET /v1/did/keys/current`
 - `GET /v1/did/keys`
 - `POST /v1/did/attest`
+- `POST /v1/did/attest/revoke`
+- `GET /v1/did/attest/{hash_id}/audit`
 - `POST /v1/did/actions/challenge`
 - `POST /v1/did/actions/submit`
 - `GET /v1/did/actions/{action_id}`

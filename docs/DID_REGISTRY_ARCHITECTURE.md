@@ -724,9 +724,20 @@ Adds or updates a bank attestation for an existing hash.
 Behavior:
 
 - Requires bank authentication.
+- Verifies the bank attestation signature against `TRUSTED_BANK_KEYS_JSON`.
 - Rejects attestations for unknown hashes unless explicitly configured for
   queue-and-retry during mirror outage scenarios.
 - Upserts by `(hash_id, bank_id, attestation_type)`.
+
+### `POST /v1/did/attest/revoke`
+
+Revokes an existing bank attestation. The revocation request is itself signed by
+the bank key and records `revoked_at` without deleting the original attestation.
+
+### `GET /v1/did/attest/{hash_id}/audit`
+
+Exports all attestations for a hash, including revoked records, signatures,
+verification status, payload metadata, and timestamps.
 
 ### `POST /v1/did/actions/challenge`
 

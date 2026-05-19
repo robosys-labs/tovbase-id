@@ -126,6 +126,8 @@ class AttestationSummary(BaseModel):
     issued_at: datetime
     expires_at: datetime | None = None
     key_id: str
+    signature_verified: bool = False
+    verification_error: str | None = None
     revoked_at: datetime | None = None
 
 
@@ -175,6 +177,45 @@ class DidAttestResponse(BaseModel):
     hash_id: str
     did: str
     attestation: AttestationSummary
+
+
+class BankAttestationRevokeRequest(StrictModel):
+    hash_id: str
+    bank_id: str = Field(min_length=1)
+    attestation_type: str = Field(min_length=1, max_length=64)
+    revoked_at: datetime | None = None
+    reason_code: str = Field(default="bank_revoked", min_length=1, max_length=64)
+    key_id: str = Field(min_length=1)
+    signature: str = Field(min_length=1)
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("hash_id")
+    @classmethod
+    def normalize_revoked_hash(cls, value: str) -> str:
+        return normalize_hash(value)
+
+
+class BankAttestationAuditRecord(BaseModel):
+    attestation_id: str
+    hash_id: str
+    bank_id: str
+    attestation_type: str
+    attestation_hash: str
+    issued_at: datetime
+    expires_at: datetime | None = None
+    key_id: str
+    signature: str
+    signature_verified: bool
+    verification_error: str | None = None
+    payload: dict[str, Any]
+    revoked_at: datetime | None = None
+
+
+class BankAttestationAuditResponse(BaseModel):
+    hash_id: str
+    did: str
+    exported_at: datetime
+    attestations: list[BankAttestationAuditRecord] = Field(default_factory=list)
 
 
 class RequestedAttestation(StrictModel):

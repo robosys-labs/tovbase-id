@@ -102,6 +102,10 @@ POST /v1/did/register
 The registry stores the hash, DID document, append-only event, signed receipt,
 and optional bank attestation in one transaction.
 
+If a bank attestation is supplied, it must be signed by a trusted bank key from
+`TRUSTED_BANK_KEYS_JSON`. The complete signed attestation and revocation flow is
+documented in `docs/BANK_ATTESTATION_WORKFLOW.md`.
+
 Duplicate exact registrations are idempotent. A duplicate `hash_id` with a
 different public-key fingerprint returns `409 Conflict`.
 

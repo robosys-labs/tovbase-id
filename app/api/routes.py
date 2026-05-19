@@ -11,6 +11,8 @@ from app.schemas import (
     ActionResponse,
     ActionSubmitRequest,
     ActionSubmitResponse,
+    BankAttestationAuditResponse,
+    BankAttestationRevokeRequest,
     DidAttestRequest,
     DidAttestResponse,
     DidHealthResponse,
@@ -74,6 +76,20 @@ def registry_keys() -> list[RegistryKeyResponse]:
 @router.post("/attest", response_model=DidAttestResponse)
 def attest(request: DidAttestRequest, db: DBSession) -> DidAttestResponse:
     return _service(lambda: registry.upsert_attestation(db, request))
+
+
+@router.post("/attest/revoke", response_model=DidAttestResponse)
+def revoke_attestation(request: BankAttestationRevokeRequest, db: DBSession) -> DidAttestResponse:
+    return _service(lambda: registry.revoke_attestation(db, request))
+
+
+@router.get("/attest/{hash_id}/audit", response_model=BankAttestationAuditResponse)
+def export_attestation_audit(hash_id: str, db: DBSession) -> BankAttestationAuditResponse:
+    try:
+        normalized = normalize_hash(hash_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _service(lambda: registry.export_attestation_audit(db, normalized))
 
 
 @router.post("/actions/challenge", response_model=ActionChallengeResponse)

@@ -24,6 +24,9 @@ from app.schemas import (
     ActionSubmitRequest,
     ActionSubmitResponse,
     AttestationSummary,
+    BankAttestationAuditRecord,
+    BankAttestationAuditResponse,
+    BankAttestationRevokeRequest,
     DidAttestRequest,
     DidAttestResponse,
     DidHealthResponse,
@@ -35,6 +38,7 @@ from app.schemas import (
     ReceiptVerifyResponse,
     RegistryKeyResponse,
 )
+from app.services.bank_keys import verify_bank_attestation, verify_bank_revocation
 from app.services.crypto import (
     b64url_encode,
     canonical_json_bytes,
@@ -166,6 +170,26 @@ def _attestation_summary(attestation: BankAttestation) -> AttestationSummary:
         issued_at=attestation.issued_at,
         expires_at=attestation.expires_at,
         key_id=attestation.key_id,
+        signature_verified=attestation.signature_verified,
+        verification_error=attestation.verification_error,
+        revoked_at=attestation.revoked_at,
+    )
+
+
+def _attestation_audit_record(attestation: BankAttestation) -> BankAttestationAuditRecord:
+    return BankAttestationAuditRecord(
+        attestation_id=attestation.attestation_id,
+        hash_id=attestation.hash_id,
+        bank_id=attestation.bank_id,
+        attestation_type=attestation.attestation_type,
+        attestation_hash=attestation.attestation_hash,
+        issued_at=attestation.issued_at,
+        expires_at=attestation.expires_at,
+        key_id=attestation.key_id,
+        signature=attestation.signature,
+        signature_verified=attestation.signature_verified,
+        verification_error=attestation.verification_error,
+        payload=attestation.payload,
         revoked_at=attestation.revoked_at,
     )
 
@@ -218,6 +242,8 @@ def _upsert_attestation(
     expires_at: datetime | None,
     key_id: str,
     signature: str,
+    signature_verified: bool,
+    verification_error: str | None,
     payload: dict[str, Any],
     revoked_at: datetime | None = None,
 ) -> BankAttestation:
@@ -243,6 +269,8 @@ def _upsert_attestation(
             expires_at=expires_at,
             key_id=key_id,
             signature=signature,
+            signature_verified=signature_verified,
+            verification_error=verification_error,
             payload=payload,
             revoked_at=revoked_at,
         )
@@ -253,6 +281,8 @@ def _upsert_attestation(
         existing.expires_at = expires_at
         existing.key_id = key_id
         existing.signature = signature
+        existing.signature_verified = signature_verified
+        existing.verification_error = verification_error
         existing.payload = payload
         existing.revoked_at = revoked_at
         attestation = existing
@@ -266,6 +296,9 @@ def _attach_registration_attestation(db: Session, request: DidRegisterRequest) -
     if not request.bank_id:
         raise RegistryValidationError("bank_id is required when bank_attestation is supplied")
     att = request.bank_attestation
+    verification = verify_bank_attestation(hash_id=request.hash_id, bank_id=request.bank_id, attestation=att)
+    if not verification.valid:
+        raise RegistryValidationError(f"bank attestation signature invalid: {verification.error}")
     return _upsert_attestation(
         db,
         hash_id=request.hash_id,
@@ -276,6 +309,8 @@ def _attach_registration_attestation(db: Session, request: DidRegisterRequest) -
         expires_at=att.expires_at,
         key_id=att.key_id,
         signature=att.signature,
+        signature_verified=verification.valid,
+        verification_error=verification.error,
         payload=att.payload,
         revoked_at=att.revoked_at,
     )
@@ -449,6 +484,9 @@ def upsert_attestation(db: Session, request: DidAttestRequest) -> DidAttestRespo
         raise RegistryNotFound("cannot attest an unknown hash_id")
 
     att = request.attestation
+    verification = verify_bank_attestation(hash_id=request.hash_id, bank_id=request.bank_id, attestation=att)
+    if not verification.valid:
+        raise RegistryValidationError(f"bank attestation signature invalid: {verification.error}")
     attestation = _upsert_attestation(
         db,
         hash_id=request.hash_id,
@@ -459,6 +497,8 @@ def upsert_attestation(db: Session, request: DidAttestRequest) -> DidAttestRespo
         expires_at=att.expires_at,
         key_id=att.key_id,
         signature=att.signature,
+        signature_verified=verification.valid,
+        verification_error=verification.error,
         payload=att.payload,
         revoked_at=att.revoked_at,
     )
@@ -477,6 +517,70 @@ def upsert_attestation(db: Session, request: DidAttestRequest) -> DidAttestRespo
     )
     db.commit()
     return DidAttestResponse(hash_id=identity.hash_id, did=identity.did, attestation=_attestation_summary(attestation))
+
+
+def revoke_attestation(db: Session, request: BankAttestationRevokeRequest) -> DidAttestResponse:
+    identity = db.get(IdentityHash, request.hash_id)
+    if identity is None:
+        raise RegistryNotFound("cannot revoke an attestation for an unknown hash_id")
+
+    verification = verify_bank_revocation(request)
+    if not verification.valid:
+        raise RegistryValidationError(f"bank attestation revocation signature invalid: {verification.error}")
+
+    attestation = (
+        db.execute(
+            select(BankAttestation).where(
+                BankAttestation.hash_id == request.hash_id,
+                BankAttestation.bank_id == request.bank_id,
+                BankAttestation.attestation_type == request.attestation_type,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if attestation is None:
+        raise RegistryNotFound("bank attestation not found")
+
+    revoked_at = request.revoked_at or utc_now()
+    attestation.revoked_at = revoked_at
+    create_event(
+        db,
+        event_type="bank_attestation_revoked",
+        aggregate_type="identity_hash",
+        aggregate_id=request.hash_id,
+        payload={
+            "hash_id": request.hash_id,
+            "bank_id": request.bank_id,
+            "attestation_type": request.attestation_type,
+            "revoked_at": revoked_at,
+            "reason_code": request.reason_code,
+            "key_id": request.key_id,
+        },
+    )
+    db.commit()
+    return DidAttestResponse(hash_id=identity.hash_id, did=identity.did, attestation=_attestation_summary(attestation))
+
+
+def export_attestation_audit(db: Session, hash_id: str) -> BankAttestationAuditResponse:
+    identity = db.get(IdentityHash, hash_id)
+    if identity is None:
+        raise RegistryNotFound("DID registry entry not found")
+    attestations = list(
+        db.execute(
+            select(BankAttestation)
+            .where(BankAttestation.hash_id == hash_id)
+            .order_by(BankAttestation.bank_id, BankAttestation.attestation_type, BankAttestation.issued_at)
+        )
+        .scalars()
+        .all()
+    )
+    return BankAttestationAuditResponse(
+        hash_id=identity.hash_id,
+        did=identity.did,
+        exported_at=utc_now(),
+        attestations=[_attestation_audit_record(attestation) for attestation in attestations],
+    )
 
 
 def create_action_challenge(db: Session, request: ActionChallengeRequest) -> ActionChallengeResponse:

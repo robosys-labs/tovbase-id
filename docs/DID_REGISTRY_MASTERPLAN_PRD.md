@@ -171,6 +171,8 @@ registered and attested without Tovbase storing the underlying identity data.
 - Verify bank attestation signatures.
 - Support attestation revocation.
 - Provide audit export for all attestations on a hash.
+- Current status: signed bank attestation verification, signed revocation, and
+  audit export endpoints are implemented.
 - Support requested attestation policies:
   - `instant`: passkey only.
   - `aal2`: passkey plus bank handshake credential.
