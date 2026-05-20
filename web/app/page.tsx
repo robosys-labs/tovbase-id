@@ -134,6 +134,12 @@ export default function TovbaseIdPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
+                href="/demo"
+                className="inline-flex h-11 items-center justify-center bg-[#111827] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#1f2937]"
+              >
+                Launch signed proof demo
+              </a>
+              <a
                 href="mailto:partners@tovbase.com?subject=Tovbase%20ID%20bank%20pilot"
                 className="inline-flex h-11 items-center justify-center bg-[#0f6e56] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0b5945]"
               >

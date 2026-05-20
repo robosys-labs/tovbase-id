@@ -35,6 +35,7 @@ docs/
   RUNTIME_STRATEGY.md            # Python pilot and Go migration gates
   NATS_EVENT_PLANE.md            # optional JetStream registry event publisher
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
+  DEMO_SIGNED_ARTIFACTS.md       # signed PDF/video browser demo guide
   assets/
     tovbase-id-landing.png       # landing-page verification screenshot
 sdk/
@@ -47,6 +48,7 @@ examples/
 web/
   app/
     page.tsx                     # id.tovbase.com landing page
+    demo/                        # browser demo for signed PDF/video proofs
 app/
   api/routes.py                  # FastAPI routes under /v1/did
   models.py                      # SQLAlchemy registry tables
@@ -71,6 +73,15 @@ cd web
 pnpm install
 pnpm dev
 ```
+
+The browser proof demo runs at:
+
+```text
+http://localhost:3003/demo
+```
+
+It can generate a demo DID key, sign a PDF hash, record or synthesize a WebRTC
+media proof, and verify the signed proof envelope entirely client-side.
 
 For local backend development:
 
