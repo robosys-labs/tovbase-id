@@ -18,6 +18,7 @@ from tests.helpers import (
     bank_headers,
     sign_action_attestation_payload,
     sign_bank_attestation_payload,
+    sign_bank_rekey_payload,
     sign_bank_revocation_payload,
 )
 
@@ -43,6 +44,10 @@ def client() -> TestClient:
 
 @pytest.fixture()
 def user_key() -> tuple[ed25519.Ed25519PrivateKey, dict[str, str], str, str]:
+    return make_user_key()
+
+
+def make_user_key() -> tuple[ed25519.Ed25519PrivateKey, dict[str, str], str, str]:
     private_key = ed25519.Ed25519PrivateKey.generate()
     public_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     jwk = {"kty": "OKP", "crv": "Ed25519", "x": b64url(public_bytes)}
@@ -132,6 +137,165 @@ def test_conflicting_duplicate_registration_returns_409(client: TestClient, user
 
     assert response.status_code == 409
     assert "different public-key fingerprint" in response.json()["detail"]
+
+
+def test_rekey_identity_updates_did_document_and_action_key(client: TestClient, user_key) -> None:
+    old_private_key, _, _, _ = user_key
+    registered = register_identity(client, user_key)
+    new_private_key, new_jwk, new_credential_id, new_fingerprint = make_user_key()
+    rekey_payload = sign_bank_rekey_payload(
+        hash_id=registered["hash_id"],
+        webauthn_credential_id=new_credential_id,
+        webauthn_public_key=new_jwk,
+        device_pubkey_fingerprint=new_fingerprint,
+        payload={"recovery_case_hash": sha256_hex("bank-held-recovery-case")},
+    )
+
+    rekey_response = client.post("/v1/did/rekey", json=rekey_payload, headers=bank_headers())
+
+    assert rekey_response.status_code == 200, rekey_response.text
+    rekeyed = rekey_response.json()
+    assert rekeyed["status"] == "rekeyed"
+    assert rekeyed["did"] == registered["did"]
+    assert rekeyed["did_document_version"] == 2
+    assert rekeyed["did_document"]["verificationMethod"][0]["publicKeyJwk"] == new_jwk
+    assert rekeyed["event_hash"]
+
+    resolve_response = client.get(f"/v1/did/{registered['did']}")
+    assert resolve_response.status_code == 200
+    resolved = resolve_response.json()
+    assert resolved["did_document"]["verificationMethod"][0]["publicKeyJwk"] == new_jwk
+
+    old_key_challenge = client.post(
+        "/v1/did/actions/challenge",
+        headers=bank_headers(),
+        json={
+            "did": registered["did"],
+            "bank_id": "bank-a",
+            "action_type": "document_signature",
+            "document_hash": sha256_hex("rekeyed-document-old-key-attempt"),
+            "requested_attestation": {"level": "instant", "methods": ["passkey"], "max_age_seconds": 300},
+            "policy_version": "bank-a-actions-v1",
+        },
+    ).json()
+    old_key_submit = client.post(
+        "/v1/did/actions/submit",
+        json={
+            "action_id": old_key_challenge["action_id"],
+            "signature": sign_challenge(old_private_key, old_key_challenge["challenge_hash"]),
+        },
+    )
+    assert old_key_submit.status_code == 200
+    assert old_key_submit.json()["status"] == "rejected"
+    assert old_key_submit.json()["verification_result"]["signature_valid"] is False
+
+    new_key_challenge = client.post(
+        "/v1/did/actions/challenge",
+        headers=bank_headers(),
+        json={
+            "did": registered["did"],
+            "bank_id": "bank-a",
+            "action_type": "document_signature",
+            "document_hash": sha256_hex("rekeyed-document-new-key"),
+            "requested_attestation": {"level": "instant", "methods": ["passkey"], "max_age_seconds": 300},
+            "policy_version": "bank-a-actions-v1",
+        },
+    ).json()
+    new_key_submit = client.post(
+        "/v1/did/actions/submit",
+        json={
+            "action_id": new_key_challenge["action_id"],
+            "signature": sign_challenge(new_private_key, new_key_challenge["challenge_hash"]),
+        },
+    )
+    assert new_key_submit.status_code == 200
+    assert new_key_submit.json()["status"] == "approved"
+    assert new_key_submit.json()["verification_result"]["signature_valid"] is True
+
+
+def test_rekey_same_key_is_idempotent(client: TestClient, user_key) -> None:
+    _, jwk, credential_id, fingerprint = user_key
+    registered = register_identity(client, user_key)
+    rekey_payload = sign_bank_rekey_payload(
+        hash_id=registered["hash_id"],
+        webauthn_credential_id=credential_id,
+        webauthn_public_key=jwk,
+        device_pubkey_fingerprint=fingerprint,
+    )
+
+    response = client.post("/v1/did/rekey", json=rekey_payload, headers=bank_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "unchanged"
+    assert body["did_document_version"] == 1
+    assert body["event_hash"] is None
+
+
+def test_rekey_requires_bank_api_key(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    _, new_jwk, new_credential_id, new_fingerprint = make_user_key()
+    rekey_payload = sign_bank_rekey_payload(
+        hash_id=registered["hash_id"],
+        webauthn_credential_id=new_credential_id,
+        webauthn_public_key=new_jwk,
+        device_pubkey_fingerprint=new_fingerprint,
+    )
+
+    response = client.post("/v1/did/rekey", json=rekey_payload)
+
+    assert response.status_code == 401
+    assert "valid bank API key required" in response.json()["detail"]
+
+
+def test_rekey_rejects_invalid_bank_signature(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    _, new_jwk, new_credential_id, new_fingerprint = make_user_key()
+    rekey_payload = sign_bank_rekey_payload(
+        hash_id=registered["hash_id"],
+        webauthn_credential_id=new_credential_id,
+        webauthn_public_key=new_jwk,
+        device_pubkey_fingerprint=new_fingerprint,
+    )
+    rekey_payload["signature"] = b64url(b"invalid-bank-signature")
+
+    response = client.post("/v1/did/rekey", json=rekey_payload, headers=bank_headers())
+
+    assert response.status_code == 400
+    assert "bank rekey signature invalid" in response.json()["detail"]
+
+
+def test_rekey_rejects_raw_pii_payload(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    _, new_jwk, new_credential_id, new_fingerprint = make_user_key()
+    rekey_payload = sign_bank_rekey_payload(
+        hash_id=registered["hash_id"],
+        webauthn_credential_id=new_credential_id,
+        webauthn_public_key=new_jwk,
+        device_pubkey_fingerprint=new_fingerprint,
+    )
+    rekey_payload["payload"] = {"nin": "12345678901"}
+
+    response = client.post("/v1/did/rekey", json=rekey_payload, headers=bank_headers())
+
+    assert response.status_code == 422
+
+
+def test_rekey_bank_id_must_match_api_key(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+    _, new_jwk, new_credential_id, new_fingerprint = make_user_key()
+    rekey_payload = sign_bank_rekey_payload(
+        hash_id=registered["hash_id"],
+        bank_id="bank-b",
+        webauthn_credential_id=new_credential_id,
+        webauthn_public_key=new_jwk,
+        device_pubkey_fingerprint=new_fingerprint,
+    )
+
+    response = client.post("/v1/did/rekey", json=rekey_payload, headers=bank_headers(bank_id="bank-a"))
+
+    assert response.status_code == 403
+    assert "does not match request bank_id" in response.json()["detail"]
 
 
 def test_invalid_hash_format_is_rejected(client: TestClient, user_key) -> None:

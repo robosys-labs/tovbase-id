@@ -24,6 +24,8 @@ from app.schemas import (
     DidHealthResponse,
     DidRegisterRequest,
     DidRegisterResponse,
+    DidRekeyRequest,
+    DidRekeyResponse,
     DidResolveResponse,
     ReceiptVerifyRequest,
     ReceiptVerifyResponse,
@@ -59,6 +61,12 @@ def register(request: DidRegisterRequest, principal: BankAuth, db: DBSession) ->
 def register_batch(request: DidBatchRegisterRequest, principal: BankAuth, db: DBSession) -> DidBatchRegisterResponse:
     assert_bank_scope(principal, request.bank_id)
     return registry.register_batch(db, request)
+
+
+@router.post("/rekey", response_model=DidRekeyResponse)
+def rekey(request: DidRekeyRequest, principal: BankAuth, db: DBSession) -> DidRekeyResponse:
+    assert_bank_scope(principal, request.bank_id)
+    return _service(lambda: registry.rekey_identity(db, request))
 
 
 @router.get("/health", response_model=DidHealthResponse)

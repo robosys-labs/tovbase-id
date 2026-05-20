@@ -118,6 +118,36 @@ class DidRegisterResponse(BaseModel):
     receipt: ReceiptSummary
 
 
+class DidRekeyRequest(StrictModel):
+    hash_id: str
+    bank_id: str = Field(min_length=1)
+    webauthn_credential_id: str = Field(min_length=1)
+    webauthn_public_key: dict[str, Any]
+    device_pubkey_fingerprint: str
+    rekeyed_at: datetime
+    reason_code: str = Field(default="device_recovery", min_length=1, max_length=64)
+    bank_credential_id: str | None = Field(default=None, max_length=256)
+    key_id: str = Field(min_length=1)
+    signature: str = Field(min_length=1)
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("hash_id", "device_pubkey_fingerprint")
+    @classmethod
+    def normalize_sha256_hex(cls, value: str) -> str:
+        return normalize_hash(value)
+
+
+class DidRekeyResponse(BaseModel):
+    did: str
+    hash_id: str
+    status: Literal["rekeyed", "unchanged"]
+    rekeyed_at: datetime
+    did_document: dict[str, Any]
+    document_hash: str
+    did_document_version: int
+    event_hash: str | None = None
+
+
 class DidBatchRegisterEntry(StrictModel):
     hash_id: str
     hash_algorithm: Literal["sha256"] = "sha256"

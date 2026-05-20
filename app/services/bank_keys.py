@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
-from app.schemas import BankAttestationInput, BankAttestationRevokeRequest
+from app.schemas import BankAttestationInput, BankAttestationRevokeRequest, DidRekeyRequest
 from app.services.crypto import canonical_json_bytes, json_safe, verify_detached_signature
 
 
@@ -91,6 +91,24 @@ def bank_attestation_revocation_envelope(request: BankAttestationRevokeRequest) 
     )
 
 
+def bank_rekey_envelope(request: DidRekeyRequest) -> dict[str, Any]:
+    return json_safe(
+        {
+            "purpose": "tovbase-id:did-rekey:v1",
+            "hash_id": request.hash_id,
+            "bank_id": request.bank_id,
+            "webauthn_credential_id": request.webauthn_credential_id,
+            "webauthn_public_key": request.webauthn_public_key,
+            "device_pubkey_fingerprint": request.device_pubkey_fingerprint,
+            "rekeyed_at": request.rekeyed_at,
+            "reason_code": request.reason_code,
+            "bank_credential_id": request.bank_credential_id,
+            "key_id": request.key_id,
+            "payload": request.payload,
+        }
+    )
+
+
 def verify_bank_signed_envelope(
     *,
     bank_id: str,
@@ -129,5 +147,14 @@ def verify_bank_revocation(request: BankAttestationRevokeRequest) -> BankSignatu
         bank_id=request.bank_id,
         key_id=request.key_id,
         envelope=bank_attestation_revocation_envelope(request),
+        signature=request.signature,
+    )
+
+
+def verify_bank_rekey(request: DidRekeyRequest) -> BankSignatureVerification:
+    return verify_bank_signed_envelope(
+        bank_id=request.bank_id,
+        key_id=request.key_id,
+        envelope=bank_rekey_envelope(request),
         signature=request.signature,
     )

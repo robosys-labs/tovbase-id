@@ -114,6 +114,19 @@ registered and attested without Tovbase storing the underlying identity data.
 - Treat duplicate identical registration as idempotent.
 - Treat duplicate conflicting registration as `409 Conflict`.
 
+### P0: Bank-controlled recovery
+
+- Preserve DID continuity when a user replaces or rotates their device key.
+- Require bank API authentication plus a trusted bank signature over every
+  rekey instruction.
+- Include the new credential id, public key, key fingerprint, bank credential
+  reference, reason code, and `rekeyed_at` in the signed envelope.
+- Update the DID document version and append an `identity_rekeyed` event.
+- Keep the alternative path open for banks that prefer issuing a new hash/DID
+  and handling customer merge policy internally.
+- Current status: `/v1/did/rekey` is implemented as a bank-authenticated,
+  bank-signed mutation with idempotent retry behavior.
+
 ### P0: Signed official actions
 
 - Create timestamped action challenges for documents, media, mandates, and
@@ -354,6 +367,7 @@ Exit criteria:
 - Add DID/hash lookup endpoints.
 - Add deterministic DID document generation.
 - Add receipt signing and verification.
+- Add bank-signed DID rekey for device recovery.
 - Add timestamped action challenge and signed action submission endpoints.
 - Add unit tests for all P0 cases.
 

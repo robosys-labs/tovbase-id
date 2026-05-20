@@ -138,7 +138,42 @@ documented in `docs/BANK_ATTESTATION_WORKFLOW.md`.
 Duplicate exact registrations are idempotent. A duplicate `hash_id` with a
 different public-key fingerprint returns `409 Conflict`.
 
-## 6. Batch migration format
+## 6. Recover or rekey a DID
+
+When a user replaces a phone, rotates a passkey, or completes a bank-controlled
+recovery handshake, the bank can update the DID verification key without moving
+raw PII or salts into Tovbase.
+
+```text
+POST /v1/did/rekey
+X-Tovbase-Bank-Id: bank-a
+X-Tovbase-Api-Key: <bank API key>
+```
+
+The request must be signed by a trusted bank key over the canonical
+`tovbase-id:did-rekey:v1` envelope. The signed envelope includes:
+
+- `hash_id`
+- `bank_id`
+- new `webauthn_credential_id`
+- new `webauthn_public_key`
+- new `device_pubkey_fingerprint`
+- `rekeyed_at`
+- `reason_code`
+- optional `bank_credential_id`
+- no-PII `payload`
+
+The registry verifies the bank signature, updates the DID document to version
+`N+1`, records an `identity_rekeyed` event in the per-identity hash chain, and
+returns the updated DID document. If the same key material is submitted again,
+the endpoint returns `unchanged` for safe retry.
+
+The `hash_id` and DID remain stable during rekey so relying parties keep one
+cryptographic identity. Banks that want a new identity hash after recovery can
+perform a normal new registration instead and manage any customer merge policy
+inside bank systems.
+
+## 7. Batch migration format
 
 Existing bank customers can be migrated with precomputed registration entries
 using:
@@ -164,7 +199,7 @@ processes entries independently through the normal registration path. Results
 include `registered`, `exists`, or `failed` per entry, so a migration can safely
 retry the same batch without duplicating identities.
 
-## 7. Signed official actions
+## 8. Signed official actions
 
 Create a timestamped action challenge:
 
@@ -197,7 +232,7 @@ are documented in `docs/ACTION_ATTESTATION_PROVIDER_WORKFLOW.md`.
 Backend timing can be checked with `scripts/benchmark_action_flow.py`; see
 `docs/SIGNED_ACTION_PERFORMANCE.md`.
 
-## 8. Mirror readiness
+## 9. Mirror readiness
 
 The pilot read mirror uses PostgreSQL logical replication over the registry
 tables. The operational runbook is `docs/BANK_MIRROR_RUNBOOK.md`.

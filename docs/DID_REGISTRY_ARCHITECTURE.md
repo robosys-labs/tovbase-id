@@ -693,6 +693,79 @@ Behavior:
   This makes retrying large migrations safe without forcing transaction-wide
   rollback for one bad legacy record.
 
+### `POST /v1/did/rekey`
+
+Updates the DID verification key after a bank-controlled recovery handshake.
+This preserves the `hash_id` and DID while rotating the WebAuthn credential
+metadata and DID document public key.
+
+Request:
+
+```json
+{
+  "hash_id": "64 lowercase hex chars",
+  "bank_id": "bank-a",
+  "webauthn_credential_id": "new base64url credential id",
+  "webauthn_public_key": {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": "base64url public key"
+  },
+  "device_pubkey_fingerprint": "64 lowercase hex chars",
+  "rekeyed_at": "2026-05-19T12:30:00Z",
+  "reason_code": "device_recovery",
+  "bank_credential_id": "bankcred_...",
+  "key_id": "bank-a-signing-2026-01",
+  "signature": "base64url signature",
+  "payload": {}
+}
+```
+
+The bank signs the canonical envelope:
+
+```json
+{
+  "purpose": "tovbase-id:did-rekey:v1",
+  "hash_id": "...",
+  "bank_id": "bank-a",
+  "webauthn_credential_id": "...",
+  "webauthn_public_key": {},
+  "device_pubkey_fingerprint": "...",
+  "rekeyed_at": "2026-05-19T12:30:00Z",
+  "reason_code": "device_recovery",
+  "bank_credential_id": "bankcred_...",
+  "key_id": "bank-a-signing-2026-01",
+  "payload": {}
+}
+```
+
+Response:
+
+```json
+{
+  "did": "did:tov:<hash_id>",
+  "hash_id": "<hash_id>",
+  "status": "rekeyed",
+  "rekeyed_at": "2026-05-19T12:30:00Z",
+  "did_document": {},
+  "document_hash": "64 lowercase hex chars",
+  "did_document_version": 2,
+  "event_hash": "64 lowercase hex chars"
+}
+```
+
+Behavior:
+
+- Requires bank API authentication and `bank_id` must match
+  `X-Tovbase-Bank-Id`.
+- Verifies the bank signature against `TRUSTED_BANK_KEYS_JSON`.
+- Rejects raw PII and centrally stored salts through the same strict schema
+  validation used by registration.
+- Writes an `identity_rekeyed` event to the per-identity event chain.
+- Returns `unchanged` without appending an event when the submitted key material
+  already matches the active DID document.
+- Future action challenges verify user signatures against the new public key.
+
 ### `GET /v1/did/{did}`
 
 Resolves a DID to its DID document, receipt summary, and active attestations.

@@ -35,6 +35,8 @@ from app.schemas import (
     DidHealthResponse,
     DidRegisterRequest,
     DidRegisterResponse,
+    DidRekeyRequest,
+    DidRekeyResponse,
     DidResolveResponse,
     ReceiptSummary,
     ReceiptVerifyRequest,
@@ -44,7 +46,7 @@ from app.schemas import (
     RegistryEventAuditResponse,
     RegistryKeyResponse,
 )
-from app.services.bank_keys import verify_bank_attestation, verify_bank_revocation
+from app.services.bank_keys import verify_bank_attestation, verify_bank_rekey, verify_bank_revocation
 from app.services.crypto import (
     b64url_encode,
     canonical_json_bytes,
@@ -485,6 +487,79 @@ def register_batch(db: Session, request: DidBatchRegisterRequest) -> DidBatchReg
         existing_count=existing_count,
         failed_count=failed_count,
         results=results,
+    )
+
+
+def rekey_identity(db: Session, request: DidRekeyRequest) -> DidRekeyResponse:
+    identity = db.get(IdentityHash, request.hash_id)
+    if identity is None:
+        raise RegistryNotFound("cannot rekey an unknown hash_id")
+    if identity.did_document is None:
+        raise RegistryNotFound("DID document not found")
+
+    verification = verify_bank_rekey(request)
+    if not verification.valid:
+        raise RegistryValidationError(f"bank rekey signature invalid: {verification.error}")
+
+    rekeyed_at = _aware(request.rekeyed_at)
+    did_doc = identity.did_document
+    unchanged = (
+        identity.device_pubkey_fingerprint == request.device_pubkey_fingerprint
+        and identity.webauthn_credential_id == request.webauthn_credential_id
+        and identity.webauthn_public_key == request.webauthn_public_key
+    )
+    if unchanged:
+        return DidRekeyResponse(
+            did=identity.did,
+            hash_id=identity.hash_id,
+            status="unchanged",
+            rekeyed_at=rekeyed_at,
+            did_document=did_doc.document,
+            document_hash=did_doc.document_hash,
+            did_document_version=did_doc.version,
+        )
+
+    identity.device_pubkey_fingerprint = request.device_pubkey_fingerprint
+    identity.webauthn_credential_id = request.webauthn_credential_id
+    identity.webauthn_public_key = request.webauthn_public_key
+
+    document = did_document_for(identity)
+    did_doc.document = document
+    did_doc.document_hash = sha256_hex(canonical_json_bytes(document))
+    did_doc.version += 1
+    did_doc.updated_at = rekeyed_at
+
+    event = create_event(
+        db,
+        event_type="identity_rekeyed",
+        aggregate_type="identity_hash",
+        aggregate_id=request.hash_id,
+        payload={
+            "hash_id": request.hash_id,
+            "did": identity.did,
+            "bank_id": request.bank_id,
+            "reason_code": request.reason_code,
+            "bank_credential_id": request.bank_credential_id,
+            "rekeyed_at": rekeyed_at,
+            "device_pubkey_fingerprint": request.device_pubkey_fingerprint,
+            "webauthn_credential_id": request.webauthn_credential_id,
+            "webauthn_public_key": request.webauthn_public_key,
+            "did_document_hash": did_doc.document_hash,
+            "did_document_version": did_doc.version,
+            "key_id": request.key_id,
+            "payload": request.payload,
+        },
+    )
+    db.commit()
+    return DidRekeyResponse(
+        did=identity.did,
+        hash_id=identity.hash_id,
+        status="rekeyed",
+        rekeyed_at=rekeyed_at,
+        did_document=document,
+        document_hash=did_doc.document_hash,
+        did_document_version=did_doc.version,
+        event_hash=event.event_hash,
     )
 
 

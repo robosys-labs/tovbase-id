@@ -5,9 +5,9 @@ from datetime import UTC, datetime
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from app.schemas import BankAttestationInput, BankAttestationRevokeRequest
+from app.schemas import BankAttestationInput, BankAttestationRevokeRequest, DidRekeyRequest
 from app.services.api_keys import hash_api_key
-from app.services.bank_keys import bank_attestation_envelope, bank_attestation_revocation_envelope
+from app.services.bank_keys import bank_attestation_envelope, bank_attestation_revocation_envelope, bank_rekey_envelope
 from app.services.crypto import canonical_json_bytes
 
 BANK_PRIVATE_KEY = ed25519.Ed25519PrivateKey.generate()
@@ -160,6 +160,50 @@ def sign_bank_revocation_payload(
         "attestation_type": attestation_type,
         "revoked_at": revoked_at.isoformat(),
         "reason_code": reason_code,
+        "key_id": BANK_KEY_ID,
+        "signature": signature,
+        "payload": payload,
+    }
+
+
+def sign_bank_rekey_payload(
+    *,
+    hash_id: str,
+    webauthn_credential_id: str,
+    webauthn_public_key: dict,
+    device_pubkey_fingerprint: str,
+    bank_id: str = BANK_ID,
+    rekeyed_at: datetime | None = None,
+    reason_code: str = "device_recovery",
+    bank_credential_id: str | None = "bankcred_recovery_123",
+    payload: dict | None = None,
+) -> dict:
+    rekeyed_at = rekeyed_at or datetime.now(UTC).replace(microsecond=0)
+    payload = payload or {}
+    request = DidRekeyRequest(
+        hash_id=hash_id,
+        bank_id=bank_id,
+        webauthn_credential_id=webauthn_credential_id,
+        webauthn_public_key=webauthn_public_key,
+        device_pubkey_fingerprint=device_pubkey_fingerprint,
+        rekeyed_at=rekeyed_at,
+        reason_code=reason_code,
+        bank_credential_id=bank_credential_id,
+        key_id=BANK_KEY_ID,
+        signature="pending",
+        payload=payload,
+    )
+    envelope = bank_rekey_envelope(request)
+    signature = b64url(BANK_PRIVATE_KEY.sign(canonical_json_bytes(envelope)))
+    return {
+        "hash_id": hash_id,
+        "bank_id": bank_id,
+        "webauthn_credential_id": webauthn_credential_id,
+        "webauthn_public_key": webauthn_public_key,
+        "device_pubkey_fingerprint": device_pubkey_fingerprint,
+        "rekeyed_at": rekeyed_at.isoformat(),
+        "reason_code": reason_code,
+        "bank_credential_id": bank_credential_id,
         "key_id": BANK_KEY_ID,
         "signature": signature,
         "payload": payload,
