@@ -269,6 +269,7 @@ Optional L3
 - Every mutation has an append-only registry event.
 - Every receipt is independently verifiable from canonical payload and
   registry public key.
+- Registry event hash chains are verifiable through an admin API and CLI.
 - DID documents contain only public verification material and service metadata.
 - Bank-local customer mapping remains outside Tovbase.
 - Official actions are signed over canonical envelopes that include payload
@@ -294,6 +295,8 @@ Optional L3
   only. They do not include request bodies, query strings, API keys, raw hashes,
   DIDs, client IPs, or bank customer metadata.
 - Receipt and event hash chains make tampering detectable.
+- Current status: admin event-chain audit and CLI verification are implemented
+  for sequence, previous-hash, payload-hash, and event-hash checks.
 
 ## Landing page PRD: `id.tovbase.com`
 

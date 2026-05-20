@@ -55,6 +55,7 @@ X-Tovbase-Admin-Key: <admin API key>
 Admin-authenticated endpoints:
 
 - `GET /v1/did/attest/{hash_id}/audit`
+- `GET /v1/did/events/audit`
 - `POST /v1/did/anchors`
 
 Public read/verification endpoints remain unauthenticated so relying parties

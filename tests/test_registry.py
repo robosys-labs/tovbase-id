@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, engine, init_db
 from app.main import app
+from app.models import RegistryEvent
 from tests.helpers import (
     admin_headers,
     bank_headers,
@@ -409,6 +410,62 @@ def test_attestation_revoke_and_audit_export(client: TestClient, user_key) -> No
 def test_attestation_audit_requires_admin_api_key(client: TestClient, user_key) -> None:
     registered = register_identity(client, user_key)
     response = client.get(f"/v1/did/attest/{registered['hash_id']}/audit")
+
+    assert response.status_code == 401
+    assert "valid admin API key required" in response.json()["detail"]
+
+
+def test_registry_event_audit_verifies_hash_chain(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+
+    response = client.get("/v1/did/events/audit", headers=admin_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is True
+    assert body["event_count"] >= 1
+    assert body["problem_count"] == 0
+    aggregate = next(item for item in body["aggregates"] if item["aggregate_id"] == registered["hash_id"])
+    assert aggregate["valid"] is True
+    assert aggregate["event_count"] == 1
+    assert aggregate["latest_event_hash"]
+
+
+def test_registry_event_audit_can_scope_to_aggregate(client: TestClient, user_key) -> None:
+    registered = register_identity(client, user_key)
+
+    response = client.get(
+        "/v1/did/events/audit",
+        headers=admin_headers(),
+        params={"aggregate_id": registered["hash_id"]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is True
+    assert body["aggregate_count"] == 1
+    assert body["aggregates"][0]["aggregate_id"] == registered["hash_id"]
+
+
+def test_registry_event_audit_detects_tampering(client: TestClient, user_key, db_session) -> None:
+    registered = register_identity(client, user_key)
+    event = db_session.query(RegistryEvent).filter_by(aggregate_id=registered["hash_id"]).one()
+    event.payload_hash = sha256_hex("tampered")
+    db_session.commit()
+
+    response = client.get("/v1/did/events/audit", headers=admin_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    assert body["problem_count"] >= 1
+    aggregate = next(item for item in body["aggregates"] if item["aggregate_id"] == registered["hash_id"])
+    assert aggregate["valid"] is False
+    assert "payload_hash_mismatch" in {problem["error"] for problem in aggregate["problems"]}
+
+
+def test_registry_event_audit_requires_admin_api_key(client: TestClient) -> None:
+    response = client.get("/v1/did/events/audit")
 
     assert response.status_code == 401
     assert "valid admin API key required" in response.json()["detail"]

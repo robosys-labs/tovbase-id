@@ -31,6 +31,7 @@ docs/
   ANCHORING_WORKFLOW.md          # Merkle root windows and proof generation
   API_AUTHENTICATION.md          # bank/admin API key contract
   OPERATIONS_LOGGING.md          # PII-safe structured access logs
+  EVENT_CHAIN_AUDIT.md           # registry event hash-chain verification
   RUNTIME_STRATEGY.md            # Python pilot and Go migration gates
   NATS_EVENT_PLANE.md            # optional JetStream registry event publisher
   KYC_CANONICALIZATION_V1.md     # local KYC hashing rules
@@ -88,6 +89,7 @@ python -m pytest tests -q
 node sdk/browser/test-sdk.mjs
 python scripts/benchmark_registry_core.py --iterations 2
 python scripts/benchmark_action_flow.py --iterations 2 --provider-latency-seconds 0
+python scripts/verify_event_chain.py
 ```
 
 For PostgreSQL mirror/publication work, install the optional driver:
@@ -125,6 +127,7 @@ and `ADMIN_API_KEYS_JSON`; see `docs/API_AUTHENTICATION.md`.
 - `POST /v1/did/actions/challenge` (bank API key)
 - `POST /v1/did/actions/submit`
 - `GET /v1/did/actions/{action_id}`
+- `GET /v1/did/events/audit` (admin API key)
 - `POST /v1/did/anchors` (admin API key)
 - `GET /v1/did/anchors/{anchor_id}`
 - `GET /v1/did/anchors/{anchor_id}/proof/{receipt_id}`

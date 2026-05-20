@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 os.environ["DATABASE_URL"] = "sqlite://"
 
 from app.config import settings  # noqa: E402
-from app.db import Base, engine, init_db  # noqa: E402
+from app.db import Base, SessionLocal, engine, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from tests.helpers import (  # noqa: E402
     admin_api_keys_json,
@@ -31,3 +31,12 @@ def client() -> TestClient:
     with TestClient(app) as test_client:
         yield test_client
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture()
+def db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -39,6 +39,9 @@ from app.schemas import (
     ReceiptSummary,
     ReceiptVerifyRequest,
     ReceiptVerifyResponse,
+    RegistryEventAuditAggregate,
+    RegistryEventAuditProblem,
+    RegistryEventAuditResponse,
     RegistryKeyResponse,
 )
 from app.services.bank_keys import verify_bank_attestation, verify_bank_revocation
@@ -859,6 +862,107 @@ def get_action(db: Session, action_id: str) -> ActionResponse:
             }
             for att in action.attestations
         ],
+    )
+
+
+def audit_event_chain(db: Session, *, aggregate_id: str | None = None) -> RegistryEventAuditResponse:
+    query = select(RegistryEvent).order_by(
+        RegistryEvent.aggregate_type,
+        RegistryEvent.aggregate_id,
+        RegistryEvent.sequence_number,
+        RegistryEvent.occurred_at,
+    )
+    if aggregate_id is not None:
+        query = query.where(RegistryEvent.aggregate_id == aggregate_id)
+    events = list(db.execute(query).scalars().all())
+    grouped: dict[tuple[str, str], list[RegistryEvent]] = {}
+    for event in events:
+        grouped.setdefault((event.aggregate_type, event.aggregate_id), []).append(event)
+
+    aggregates: list[RegistryEventAuditAggregate] = []
+    for (aggregate_type, grouped_aggregate_id), aggregate_events in grouped.items():
+        problems: list[RegistryEventAuditProblem] = []
+        previous_hash: str | None = None
+        expected_sequence = 1
+        for event in aggregate_events:
+            safe_payload = json_safe(event.payload)
+            expected_payload_hash = sha256_hex(canonical_json_bytes(safe_payload))
+            expected_event_hash = sha256_hex(
+                canonical_json_bytes({"payload": safe_payload, "previous_event_hash": previous_hash})
+            )
+            if event.sequence_number != expected_sequence:
+                problems.append(
+                    RegistryEventAuditProblem(
+                        event_id=event.event_id,
+                        aggregate_type=event.aggregate_type,
+                        aggregate_id=event.aggregate_id,
+                        sequence_number=event.sequence_number,
+                        error="sequence_mismatch",
+                        expected=expected_sequence,
+                        actual=event.sequence_number,
+                    )
+                )
+            if event.previous_event_hash != previous_hash:
+                problems.append(
+                    RegistryEventAuditProblem(
+                        event_id=event.event_id,
+                        aggregate_type=event.aggregate_type,
+                        aggregate_id=event.aggregate_id,
+                        sequence_number=event.sequence_number,
+                        error="previous_hash_mismatch",
+                        expected=previous_hash,
+                        actual=event.previous_event_hash,
+                    )
+                )
+            if event.payload_hash != expected_payload_hash:
+                problems.append(
+                    RegistryEventAuditProblem(
+                        event_id=event.event_id,
+                        aggregate_type=event.aggregate_type,
+                        aggregate_id=event.aggregate_id,
+                        sequence_number=event.sequence_number,
+                        error="payload_hash_mismatch",
+                        expected=expected_payload_hash,
+                        actual=event.payload_hash,
+                    )
+                )
+            if event.event_hash != expected_event_hash:
+                problems.append(
+                    RegistryEventAuditProblem(
+                        event_id=event.event_id,
+                        aggregate_type=event.aggregate_type,
+                        aggregate_id=event.aggregate_id,
+                        sequence_number=event.sequence_number,
+                        error="event_hash_mismatch",
+                        expected=expected_event_hash,
+                        actual=event.event_hash,
+                    )
+                )
+            previous_hash = event.event_hash
+            expected_sequence += 1
+
+        aggregates.append(
+            RegistryEventAuditAggregate(
+                aggregate_type=aggregate_type,
+                aggregate_id=grouped_aggregate_id,
+                event_count=len(aggregate_events),
+                valid=not problems,
+                first_event_hash=aggregate_events[0].event_hash if aggregate_events else None,
+                latest_event_hash=aggregate_events[-1].event_hash if aggregate_events else None,
+                problems=problems,
+            )
+        )
+
+    problem_count = sum(len(aggregate.problems) for aggregate in aggregates)
+    invalid_aggregate_count = sum(1 for aggregate in aggregates if not aggregate.valid)
+    return RegistryEventAuditResponse(
+        valid=problem_count == 0,
+        checked_at=utc_now(),
+        aggregate_count=len(aggregates),
+        event_count=len(events),
+        invalid_aggregate_count=invalid_aggregate_count,
+        problem_count=problem_count,
+        aggregates=aggregates,
     )
 
 

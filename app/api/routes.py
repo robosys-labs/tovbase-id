@@ -27,6 +27,7 @@ from app.schemas import (
     DidResolveResponse,
     ReceiptVerifyRequest,
     ReceiptVerifyResponse,
+    RegistryEventAuditResponse,
     RegistryKeyResponse,
     normalize_hash,
 )
@@ -128,6 +129,11 @@ def submit_action(request: ActionSubmitRequest, db: DBSession) -> ActionSubmitRe
 @router.get("/actions/{action_id}", response_model=ActionResponse)
 def get_action(action_id: str, db: DBSession) -> ActionResponse:
     return _service(lambda: registry.get_action(db, action_id))
+
+
+@router.get("/events/audit", response_model=RegistryEventAuditResponse)
+def audit_events(_: AdminAuth, db: DBSession, aggregate_id: str | None = None) -> RegistryEventAuditResponse:
+    return registry.audit_event_chain(db, aggregate_id=aggregate_id)
 
 
 @router.post("/anchors", response_model=AnchorResponse)

@@ -390,6 +390,36 @@ class DidHealthResponse(BaseModel):
     runtime: dict[str, Any] = Field(default_factory=dict)
 
 
+class RegistryEventAuditProblem(BaseModel):
+    event_id: str
+    aggregate_type: str
+    aggregate_id: str
+    sequence_number: int
+    error: str
+    expected: str | int | None = None
+    actual: str | int | None = None
+
+
+class RegistryEventAuditAggregate(BaseModel):
+    aggregate_type: str
+    aggregate_id: str
+    event_count: int
+    valid: bool
+    first_event_hash: str | None = None
+    latest_event_hash: str | None = None
+    problems: list[RegistryEventAuditProblem] = Field(default_factory=list)
+
+
+class RegistryEventAuditResponse(BaseModel):
+    valid: bool
+    checked_at: datetime
+    aggregate_count: int
+    event_count: int
+    invalid_aggregate_count: int
+    problem_count: int
+    aggregates: list[RegistryEventAuditAggregate] = Field(default_factory=list)
+
+
 class AnchorCreateRequest(StrictModel):
     window_start: datetime
     window_end: datetime

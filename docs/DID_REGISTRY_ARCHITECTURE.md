@@ -892,6 +892,19 @@ Returns the action envelope, verification status, timestamps, and attestation
 summaries. It must never return raw document/media contents or raw biometric
 captures.
 
+### `GET /v1/did/events/audit`
+
+Verifies the append-only registry event hash chain. Requires admin API
+authentication.
+
+Behavior:
+
+- Recomputes payload hashes from canonical JSON.
+- Verifies `previous_event_hash` links per aggregate.
+- Verifies monotonic `sequence_number` per aggregate.
+- Recomputes event hashes over payload plus previous hash.
+- Can be scoped with `aggregate_id` for one identity hash or signed action.
+
 ### `GET /v1/did/health`
 
 Returns registry and mirror-readiness status.
@@ -1044,6 +1057,8 @@ block DID registry development.
 - Access logs use route templates, request ids, status codes, and durations
   only; they do not include request bodies, query strings, API keys, raw hashes,
   DIDs, client IPs, or bank customer metadata.
+- `GET /v1/did/events/audit` and `scripts/verify_event_chain.py` verify
+  registry event chain continuity for operators and bank auditors.
 - `POST /v1/did/register` is idempotent for exact duplicate registrations.
 - Conflicting duplicate registrations return `409 Conflict`.
 - Every successful registration produces a signed, timestamped receipt.
